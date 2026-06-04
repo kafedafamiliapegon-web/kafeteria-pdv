@@ -12,6 +12,7 @@ export default function Mesas() {
     const { data } = await supabase
       .from("tables_open")
       .select("*")
+      .eq("status", "open")
       .order("opened_at", { ascending: false });
 
     setMesas(data || []);
@@ -25,6 +26,7 @@ export default function Mesas() {
 
     await supabase.from("tables_open").insert({
       name: nome,
+      status: "open",
     });
 
     setNome("");
@@ -102,7 +104,7 @@ export default function Mesas() {
             </h2>
 
             <div className="mt-6 space-y-2">
-              <p className="text-green-100/70">🧾 0 itens</p>
+              <p className="text-green-100/70">🧾 Comanda aberta</p>
 
               <p className="text-green-100/70">🕒 {hora(mesa.opened_at)}</p>
             </div>
