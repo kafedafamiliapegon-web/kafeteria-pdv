@@ -13,6 +13,7 @@ export default function Comanda() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [itens, setItens] = useState<any[]>([]);
   const [pagamento, setPagamento] = useState("PIX");
+  const [busca, setBusca] = useState("");
 
   async function carregar() {
     const { data: mesaData } = await supabase
@@ -31,6 +32,10 @@ export default function Comanda() {
 
     setProdutos(data || []);
   }
+
+  const produtosFiltrados = produtos.filter((produto) =>
+    produto.name.toLowerCase().includes(busca.toLowerCase())
+  );
 
   function adicionar(produto: any) {
     if (produto.stock <= 0) {
@@ -191,12 +196,25 @@ export default function Comanda() {
             <h2 className="text-3xl font-bold">Produtos</h2>
 
             <p className="mt-2 text-green-100/60">
-              Clique em um produto para adicionar ao pedido.
+              Busque ou clique em um produto para adicionar ao pedido.
             </p>
+
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar produto..."
+              className="mt-5 w-full rounded-2xl bg-[#103520] p-5 outline-none"
+            />
           </div>
 
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {produtos.map((item) => (
+            {produtosFiltrados.length === 0 && (
+              <div className="rounded-3xl bg-[#103520] p-8 text-center text-green-100/60">
+                Nenhum produto encontrado.
+              </div>
+            )}
+
+            {produtosFiltrados.map((item) => (
               <div
                 key={item.id}
                 onClick={() => adicionar(item)}
