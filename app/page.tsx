@@ -72,7 +72,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-6xl font-bold">☕ Kafeteria</h1>
 
-          <p className="mt-3 text-green-100/60">Painel principal</p>
+          <p className="mt-3 text-green-100/60">Painel principal da Kafeteria</p>
         </div>
 
         <button
