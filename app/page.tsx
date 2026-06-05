@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 export default function Dashboard() {
+  const router = useRouter();
+
   const [dados, setDados] = useState({
     vendas: 0,
     mesas: 0,
@@ -14,6 +17,16 @@ export default function Dashboard() {
 
   const [ultimas, setUltimas] = useState<any[]>([]);
   const [baixo, setBaixo] = useState<any[]>([]);
+
+  async function sair() {
+    const confirmar = confirm("Deseja sair do sistema?");
+
+    if (!confirmar) return;
+
+    await supabase.auth.signOut();
+
+    router.push("/login");
+  }
 
   async function carregar() {
     const [sales, tables, products] = await Promise.all([
@@ -55,10 +68,19 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white">
-      <div className="mb-10">
-        <h1 className="text-6xl font-bold">☕ Kafeteria</h1>
+      <div className="mb-10 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-6xl font-bold">☕ Kafeteria</h1>
 
-        <p className="mt-3 text-green-100/60">Painel principal</p>
+          <p className="mt-3 text-green-100/60">Painel principal</p>
+        </div>
+
+        <button
+          onClick={sair}
+          className="rounded-2xl bg-red-600/80 px-6 py-4 font-bold hover:bg-red-500"
+        >
+          Sair
+        </button>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
