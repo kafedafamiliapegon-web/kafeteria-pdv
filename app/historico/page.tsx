@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Header from "../../components/Header";
 import { supabase } from "../../lib/supabase";
 
 export default function Historico() {
@@ -11,7 +12,22 @@ export default function Historico() {
   async function carregar() {
     const { data } = await supabase
       .from("sales")
-      .select("*")
+      .select(
+        `
+        *,
+        orders (
+          id,
+          order_items (
+            id,
+            qty,
+            price,
+            products (
+              name
+            )
+          )
+        )
+      `
+      )
       .order("created_at", {
         ascending: false,
       });
@@ -37,23 +53,8 @@ export default function Historico() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#07130d] p-8 text-white">
-      <div className="mb-10 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-5xl font-bold">📈 Histórico</h1>
-
-          <p className="mt-3 text-green-100/60">
-            Todas as vendas realizadas.
-          </p>
-        </div>
-
-        <Link
-          href="/"
-          className="rounded-2xl bg-[#103520] px-6 py-4 font-bold hover:bg-green-700"
-        >
-          ← Voltar
-        </Link>
-      </div>
+    <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
+      <Header title="📈 Histórico" />
 
       <div className="mb-10 grid gap-5 md:grid-cols-3">
         <div className="rounded-3xl bg-[#103520] p-6">
@@ -86,29 +87,81 @@ export default function Historico() {
           </div>
         )}
 
-        {vendas.map((venda, index) => (
-          <div key={venda.id} className="rounded-3xl bg-[#103520] p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Venda #{index + 1}</h2>
+        {vendas.map((venda, index) => {
+          const itens = venda.orders?.order_items || [];
 
-                <p className="text-green-100/60">
-                  {dataBR(venda.created_at)}
-                </p>
-              </div>
+          return (
+            <div key={venda.id} className="rounded-3xl bg-[#103520] p-6">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Venda #{index + 1}</h2>
 
-              <div className="text-right">
-                <div className="rounded-full bg-green-500/20 px-4 py-2">
-                  {venda.payment_method}
+                  <p className="text-green-100/60">
+                    {dataBR(venda.created_at)}
+                  </p>
+
+                  <div className="mt-5 space-y-2">
+                    <h3 className="font-bold text-green-200">
+                      Itens do pedido
+                    </h3>
+
+                    {itens.length === 0 && (
+                      <p className="text-sm text-green-100/50">
+                        Itens indisponíveis para vendas antigas.
+                      </p>
+                    )}
+
+                    {itens.map((item: any) => {
+                      const nomeProduto =
+                        item.products?.name || "Produto";
+
+                      const subtotal =
+                        Number(item.qty) * Number(item.price);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-xl bg-black/10 p-3"
+                        >
+                          <div className="flex justify-between gap-4">
+                            <span>
+                              {item.qty}x {nomeProduto}
+                            </span>
+
+                            <span>
+                              R$ {subtotal.toFixed(2)}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-green-100/50">
+                            Unitário: R$ {Number(item.price).toFixed(2)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <h2 className="mt-3 text-3xl font-bold">
-                  R$ {Number(venda.total).toFixed(2)}
-                </h2>
+                <div className="flex flex-col gap-3 md:items-end">
+                  <div className="w-fit rounded-full bg-green-500/20 px-4 py-2">
+                    {venda.payment_method}
+                  </div>
+
+                  <h2 className="text-3xl font-bold">
+                    R$ {Number(venda.total).toFixed(2)}
+                  </h2>
+
+                  <Link
+                    href={`/cupom/${venda.id}`}
+                    className="rounded-xl bg-green-600 px-5 py-3 text-center font-bold hover:bg-green-500"
+                  >
+                    🧾 Ver Cupom
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </main>
   );

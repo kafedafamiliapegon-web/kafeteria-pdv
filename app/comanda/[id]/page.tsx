@@ -130,10 +130,15 @@ export default function Comanda() {
       }
     }
 
-    const { error: saleError } = await supabase.from("sales").insert({
-      payment_method: pagamento,
-      total: total,
-    });
+    const { data: sale, error: saleError } = await supabase
+      .from("sales")
+      .insert({
+        payment_method: pagamento,
+        total: total,
+        order_id: order.id,
+      })
+      .select()
+      .single();
 
     if (saleError) {
       alert(saleError.message);
@@ -149,7 +154,7 @@ export default function Comanda() {
 
     alert("Venda finalizada com sucesso ☕");
 
-    router.push("/mesas");
+    router.push(`/cupom/${sale.id}`);
   }
 
   useEffect(() => {
@@ -158,7 +163,7 @@ export default function Comanda() {
 
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
-      <Header title={`🧾 ${mesa?.name || "Comanda"}`} />
+      <Header title={`🧾 ${mesa?.name || "Comanda"}`} backTo="/mesas" />
 
       <div className="grid gap-8 xl:grid-cols-[1fr_420px]">
         <section>
@@ -221,6 +226,7 @@ export default function Comanda() {
               >
                 <div>
                   <strong>{item.name}</strong>
+
                   <p className="text-sm text-green-100/70">
                     R$ {Number(item.price).toFixed(2)}
                   </p>
