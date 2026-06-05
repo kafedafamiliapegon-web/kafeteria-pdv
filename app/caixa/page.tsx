@@ -8,6 +8,7 @@ export default function Caixa() {
   const [caixa, setCaixa] = useState<any>(null);
   const [valorInicial, setValorInicial] = useState("");
   const [vendas, setVendas] = useState<any[]>([]);
+  const [historicoCaixas, setHistoricoCaixas] = useState<any[]>([]);
 
   const [resumo, setResumo] = useState({
     pix: 0,
@@ -22,6 +23,16 @@ export default function Caixa() {
     return Number(valor.replace(",", "."));
   }
 
+  async function carregarHistoricoCaixas() {
+    const { data } = await supabase
+      .from("cash_registers")
+      .select("*")
+      .order("opened_at", { ascending: false })
+      .limit(10);
+
+    setHistoricoCaixas(data || []);
+  }
+
   async function carregar() {
     const { data: caixaAberto } = await supabase
       .from("cash_registers")
@@ -32,6 +43,8 @@ export default function Caixa() {
       .maybeSingle();
 
     setCaixa(caixaAberto);
+
+    await carregarHistoricoCaixas();
 
     if (!caixaAberto) {
       setVendas([]);
@@ -134,8 +147,14 @@ export default function Caixa() {
     carregar();
   }
 
-  function dataBR(data: string) {
+  function dataBR(data: string | null) {
+    if (!data) return "—";
+
     return new Date(data).toLocaleString("pt-BR");
+  }
+
+  function dinheiro(valor: any) {
+    return `R$ ${Number(valor || 0).toFixed(2)}`;
   }
 
   useEffect(() => {
@@ -145,6 +164,15 @@ export default function Caixa() {
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
       <Header title="💰 Caixa" />
+
+      <div className="mb-8 flex justify-end">
+        <button
+          onClick={carregar}
+          className="rounded-2xl bg-[#103520] px-6 py-4 font-bold hover:bg-green-700"
+        >
+          Atualizar
+        </button>
+      </div>
 
       {!caixa && (
         <section className="max-w-xl rounded-3xl bg-[#103520] p-8">
@@ -202,7 +230,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">Valor inicial</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {Number(caixa.opening_amount || 0).toFixed(2)}
+                {dinheiro(caixa.opening_amount)}
               </div>
             </div>
 
@@ -220,7 +248,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">Total vendas</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {resumo.total.toFixed(2)}
+                {dinheiro(resumo.total)}
               </div>
             </div>
 
@@ -230,7 +258,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">Total final</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {resumo.totalComInicial.toFixed(2)}
+                {dinheiro(resumo.totalComInicial)}
               </div>
             </div>
           </div>
@@ -242,7 +270,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">PIX</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {resumo.pix.toFixed(2)}
+                {dinheiro(resumo.pix)}
               </div>
             </div>
 
@@ -252,7 +280,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">Cartão</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {resumo.cartao.toFixed(2)}
+                {dinheiro(resumo.cartao)}
               </div>
             </div>
 
@@ -262,7 +290,7 @@ export default function Caixa() {
               <h2 className="mt-5 text-xl">Dinheiro</h2>
 
               <div className="mt-4 text-4xl font-bold">
-                R$ {resumo.dinheiro.toFixed(2)}
+                {dinheiro(resumo.dinheiro)}
               </div>
             </div>
           </div>
@@ -290,15 +318,56 @@ export default function Caixa() {
                     </p>
                   </div>
 
-                  <div className="font-bold">
-                    R$ {Number(venda.total).toFixed(2)}
-                  </div>
+                  <div className="font-bold">{dinheiro(venda.total)}</div>
                 </div>
               ))}
             </div>
           </section>
         </>
       )}
+
+      <section className="mt-10 rounded-3xl bg-[#103520] p-8">
+        <h2 className="mb-6 text-3xl font-bold">📚 Histórico de caixas</h2>
+
+        <div className="space-y-4">
+          {historicoCaixas.length === 0 && (
+            <p className="text-green-100/60">
+              Nenhum caixa registrado ainda.
+            </p>
+          )}
+
+          {historicoCaixas.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-2xl bg-black/10 p-5"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <strong>
+                    {item.status === "open" ? "🟢 Caixa aberto" : "⚪ Caixa fechado"}
+                  </strong>
+
+                  <p className="mt-1 text-sm text-green-100/60">
+                    Aberto: {dataBR(item.opened_at)}
+                  </p>
+
+                  <p className="text-sm text-green-100/60">
+                    Fechado: {dataBR(item.closed_at)}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p>Inicial: {dinheiro(item.opening_amount)}</p>
+
+                  <p className="font-bold">
+                    Final: {item.closing_amount ? dinheiro(item.closing_amount) : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
