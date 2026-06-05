@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Header from "../../../components/Header";
 import { supabase } from "../../../lib/supabase";
 
 export default function Comanda() {
@@ -156,14 +157,18 @@ export default function Comanda() {
   }, [id]);
 
   return (
-    <main className="min-h-screen bg-[#07130d] p-8 text-white">
-      <h1 className="text-5xl font-bold">🪑 {mesa?.name}</h1>
+    <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
+      <Header title={`🧾 ${mesa?.name || "Comanda"}`} />
 
-      <p className="mt-2 text-green-300">Comanda aberta</p>
-
-      <div className="mt-10 grid gap-8 xl:grid-cols-[1fr_420px]">
+      <div className="grid gap-8 xl:grid-cols-[1fr_420px]">
         <section>
-          <h2 className="mb-6 text-3xl font-bold">Produtos</h2>
+          <div className="mb-6">
+            <h2 className="text-3xl font-bold">Produtos</h2>
+
+            <p className="mt-2 text-green-100/60">
+              Clique em um produto para adicionar ao pedido.
+            </p>
+          </div>
 
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {produtos.map((item) => (
@@ -175,19 +180,25 @@ export default function Comanda() {
                 {item.image_url ? (
                   <img
                     src={item.image_url}
-                    className="h-48 w-full rounded-2xl object-cover"
+                    className="h-48 w-full rounded-2xl object-cover object-center"
                   />
                 ) : (
-                  <div className="text-6xl">☕</div>
+                  <div className="flex h-48 items-center justify-center rounded-2xl bg-black/10 text-6xl">
+                    ☕
+                  </div>
                 )}
 
                 <h2 className="mt-4 text-2xl font-bold">{item.name}</h2>
 
-                <p>R$ {Number(item.price).toFixed(2)}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-green-300">
+                    R$ {Number(item.price).toFixed(2)}
+                  </p>
 
-                <p className="mt-1 text-sm text-green-200/70">
-                  Estoque: {item.stock}
-                </p>
+                  <p className="text-sm text-green-200/70">
+                    Estoque: {item.stock}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -217,7 +228,7 @@ export default function Comanda() {
 
                 <button
                   onClick={() => remover(i)}
-                  className="rounded-xl bg-red-500/20 px-3 py-2 text-red-200"
+                  className="rounded-xl bg-red-500/20 px-3 py-2 text-red-200 hover:bg-red-500/30"
                 >
                   Remover
                 </button>
