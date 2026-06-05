@@ -63,7 +63,7 @@ export default function Caixa() {
     const { data } = await supabase
       .from("sales")
       .select("*")
-      .gte("created_at", caixaAberto.opened_at)
+      .eq("cash_register_id", caixaAberto.id)
       .order("created_at", { ascending: false });
 
     const lista = data || [];
@@ -337,14 +337,13 @@ export default function Caixa() {
           )}
 
           {historicoCaixas.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-2xl bg-black/10 p-5"
-            >
+            <div key={item.id} className="rounded-2xl bg-black/10 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <strong>
-                    {item.status === "open" ? "🟢 Caixa aberto" : "⚪ Caixa fechado"}
+                    {item.status === "open"
+                      ? "🟢 Caixa aberto"
+                      : "⚪ Caixa fechado"}
                   </strong>
 
                   <p className="mt-1 text-sm text-green-100/60">
@@ -360,7 +359,8 @@ export default function Caixa() {
                   <p>Inicial: {dinheiro(item.opening_amount)}</p>
 
                   <p className="font-bold">
-                    Final: {item.closing_amount ? dinheiro(item.closing_amount) : "—"}
+                    Final:{" "}
+                    {item.closing_amount ? dinheiro(item.closing_amount) : "—"}
                   </p>
                 </div>
               </div>

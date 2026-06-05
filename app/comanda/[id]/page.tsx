@@ -199,6 +199,7 @@ export default function Comanda() {
         payment_method: pagamento,
         total: total,
         order_id: order.id,
+        cash_register_id: caixaAberto.id,
       })
       .select()
       .single();
