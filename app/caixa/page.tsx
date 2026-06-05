@@ -163,7 +163,7 @@ export default function Caixa() {
 
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
-      <Header title="💰 Caixa" />
+      <Header title="💰 Caixa" backTo="/" backLabel="🏠 Início" />
 
       <div className="mb-8 flex justify-end">
         <button

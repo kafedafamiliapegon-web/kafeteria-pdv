@@ -54,7 +54,7 @@ export default function Cupom() {
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
       <div className="print:hidden">
-        <Header title="🧾 Cupom" backTo="/historico" />
+        <Header title="🧾 Cupom" backTo="/" backLabel="🏠 Início" />
       </div>
 
       <section className="mx-auto max-w-md rounded-3xl bg-white p-8 text-black print:rounded-none print:p-4">

@@ -44,6 +44,63 @@ export default function Historico() {
     setTotal(soma);
   }
 
+  async function apagarVenda(venda: any) {
+    const confirmar = confirm(
+      `Apagar esta venda?\n\nValor: R$ ${Number(venda.total).toFixed(
+        2
+      )}\nPagamento: ${venda.payment_method}\n\nEssa ação não apaga produtos cadastrados.`
+    );
+
+    if (!confirmar) return;
+
+    const palavra = prompt('Para confirmar, digite exatamente: APAGAR');
+
+    if (palavra !== "APAGAR") {
+      alert("Operação cancelada.");
+      return;
+    }
+
+    const orderId = venda.order_id || venda.orders?.id;
+
+    if (orderId) {
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .delete()
+        .eq("order_id", orderId);
+
+      if (itemsError) {
+        alert(itemsError.message);
+        return;
+      }
+    }
+
+    const { error: saleError } = await supabase
+      .from("sales")
+      .delete()
+      .eq("id", venda.id);
+
+    if (saleError) {
+      alert(saleError.message);
+      return;
+    }
+
+    if (orderId) {
+      const { error: orderError } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (orderError) {
+        alert(orderError.message);
+        return;
+      }
+    }
+
+    alert("Venda apagada com sucesso.");
+
+    carregar();
+  }
+
   function dataBR(data: string) {
     return new Date(data).toLocaleString("pt-BR");
   }
@@ -112,11 +169,9 @@ export default function Historico() {
                     )}
 
                     {itens.map((item: any) => {
-                      const nomeProduto =
-                        item.products?.name || "Produto";
+                      const nomeProduto = item.products?.name || "Produto";
 
-                      const subtotal =
-                        Number(item.qty) * Number(item.price);
+                      const subtotal = Number(item.qty) * Number(item.price);
 
                       return (
                         <div
@@ -157,6 +212,13 @@ export default function Historico() {
                   >
                     🧾 Ver Cupom
                   </Link>
+
+                  <button
+                    onClick={() => apagarVenda(venda)}
+                    className="rounded-xl bg-red-600/80 px-5 py-3 text-center font-bold hover:bg-red-500"
+                  >
+                    🗑️ Apagar Venda
+                  </button>
                 </div>
               </div>
             </div>

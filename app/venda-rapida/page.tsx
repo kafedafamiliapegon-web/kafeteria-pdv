@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Header from "../../../components/Header";
-import { supabase } from "../../../lib/supabase";
+import { useRouter } from "next/navigation";
+import Header from "../../components/Header";
+import { supabase } from "../../lib/supabase";
 
 type ItemCarrinho = {
   produto: any;
@@ -12,11 +12,9 @@ type ItemCarrinho = {
 
 const categorias = ["Todos", "Cafés", "Bebidas", "Salgados", "Doces", "Outros"];
 
-export default function Comanda() {
-  const { id } = useParams();
+export default function VendaRapida() {
   const router = useRouter();
 
-  const [mesa, setMesa] = useState<any>();
   const [produtos, setProdutos] = useState<any[]>([]);
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [pagamento, setPagamento] = useState("PIX");
@@ -24,14 +22,6 @@ export default function Comanda() {
   const [categoriaAtual, setCategoriaAtual] = useState("Todos");
 
   async function carregar() {
-    const { data: mesaData } = await supabase
-      .from("tables_open")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    setMesa(mesaData);
-
     const { data } = await supabase
       .from("products")
       .select("*")
@@ -139,7 +129,7 @@ export default function Comanda() {
     }
 
     const confirmar = confirm(
-      `Finalizar venda de R$ ${total.toFixed(2)} em ${pagamento}?`
+      `Finalizar venda rápida de R$ ${total.toFixed(2)} em ${pagamento}?`
     );
 
     if (!confirmar) return;
@@ -147,7 +137,7 @@ export default function Comanda() {
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
-        table_id: id,
+        table_id: null,
         status: "closed",
         subtotal: total,
         discount: 0,
@@ -208,25 +198,18 @@ export default function Comanda() {
       return;
     }
 
-    await supabase
-      .from("tables_open")
-      .update({
-        status: "closed",
-      })
-      .eq("id", id);
-
-    alert("Venda finalizada com sucesso ☕");
+    alert("Venda rápida finalizada com sucesso ☕");
 
     router.push(`/cupom/${sale.id}`);
   }
 
   useEffect(() => {
-    if (id) carregar();
-  }, [id]);
+    carregar();
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
-      <Header title={`🧾 ${mesa?.name || "Comanda"}`} backTo="/mesas" />
+      <Header title="⚡ Venda Rápida" />
 
       <div className="grid gap-8 xl:grid-cols-[1fr_420px]">
         <section>
@@ -234,7 +217,7 @@ export default function Comanda() {
             <h2 className="text-3xl font-bold">Produtos</h2>
 
             <p className="mt-2 text-green-100/60">
-              Busque ou filtre por categoria para adicionar ao pedido.
+              Venda de balcão sem abrir mesa ou comanda.
             </p>
 
             <input
@@ -308,7 +291,7 @@ export default function Comanda() {
         </section>
 
         <aside className="sticky top-10 h-fit rounded-3xl bg-[#103520] p-6">
-          <h2 className="text-3xl font-bold">🛒 Pedido</h2>
+          <h2 className="text-3xl font-bold">🛒 Carrinho</h2>
 
           <div className="mt-6 space-y-3">
             {itens.length === 0 && (

@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import { supabase } from "../../lib/supabase";
 
+const categorias = ["Cafés", "Bebidas", "Salgados", "Doces", "Outros"];
+
 export default function Produtos() {
   const [lista, setLista] = useState<any[]>([]);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [nome, setNome] = useState("");
+  const [categoria, setCategoria] = useState("Outros");
   const [preco, setPreco] = useState("");
   const [estoque, setEstoque] = useState("");
   const [minimo, setMinimo] = useState("");
@@ -32,6 +35,7 @@ export default function Produtos() {
   function limparFormulario() {
     setEditandoId(null);
     setNome("");
+    setCategoria("Outros");
     setPreco("");
     setEstoque("");
     setDescricao("");
@@ -42,6 +46,7 @@ export default function Produtos() {
   function editarProduto(item: any) {
     setEditandoId(item.id);
     setNome(item.name || "");
+    setCategoria(item.category || "Outros");
     setDescricao(item.description || "");
     setPreco(String(item.price || ""));
     setEstoque(String(item.stock || ""));
@@ -93,6 +98,7 @@ export default function Produtos() {
 
     const dadosProduto: any = {
       name: nome,
+      category: categoria,
       description: descricao,
       price: precoNumero(preco),
       stock: Number(estoque),
@@ -214,6 +220,18 @@ export default function Produtos() {
               className="w-full rounded-xl bg-black/20 p-4 outline-none"
             />
 
+            <select
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              className="w-full rounded-xl bg-black/20 p-4 outline-none"
+            >
+              {categorias.map((cat) => (
+                <option key={cat} value={cat} className="bg-[#103520]">
+                  {cat}
+                </option>
+              ))}
+            </select>
+
             <textarea
               placeholder="Descrição"
               value={descricao}
@@ -276,7 +294,13 @@ export default function Produtos() {
                   </div>
                 )}
 
-                <h2 className="mt-4 text-2xl font-bold">{item.name}</h2>
+                <div className="mt-4 flex items-start justify-between gap-3">
+                  <h2 className="text-2xl font-bold">{item.name}</h2>
+
+                  <span className="rounded-full bg-green-500/20 px-3 py-1 text-xs text-green-200">
+                    {item.category || "Outros"}
+                  </span>
+                </div>
 
                 {item.description && (
                   <p className="mt-1 text-sm text-green-100/60">
