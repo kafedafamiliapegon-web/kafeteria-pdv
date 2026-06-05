@@ -78,7 +78,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-6">
         <Link
           href="/mesas"
           className="rounded-3xl bg-[#103520] p-8 text-3xl font-bold hover:bg-green-700"
@@ -105,6 +105,13 @@ export default function Dashboard() {
           className="rounded-3xl bg-[#103520] p-8 text-3xl font-bold hover:bg-green-700"
         >
           💰 Caixa
+        </Link>
+
+        <Link
+          href="/relatorios"
+          className="rounded-3xl bg-[#103520] p-8 text-3xl font-bold hover:bg-green-700"
+        >
+          📊 Relatórios
         </Link>
 
         <Link
