@@ -9,6 +9,7 @@ export default function Cupom() {
   const { id } = useParams();
 
   const [venda, setVenda] = useState<any>(null);
+  const [pedido, setPedido] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
   const [itens, setItens] = useState<any[]>([]);
 
@@ -29,6 +30,14 @@ export default function Cupom() {
     setConfig(configData);
 
     if (vendaData?.order_id) {
+      const { data: pedidoData } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", vendaData.order_id)
+        .single();
+
+      setPedido(pedidoData);
+
       const { data: itensData } = await supabase
         .from("order_items")
         .select(`
@@ -45,6 +54,10 @@ export default function Cupom() {
 
   function imprimir() {
     window.print();
+  }
+
+  function tipoVenda() {
+    return pedido?.table_id ? "🪑 Mesa/Comanda" : "⚡ Venda Rápida";
   }
 
   useEffect(() => {
@@ -68,6 +81,10 @@ export default function Cupom() {
           {config?.phone && <p>{config.phone}</p>}
           {config?.instagram && <p>{config.instagram}</p>}
           {config?.address && <p className="text-sm">{config.address}</p>}
+
+          <div className="mt-4 inline-block rounded-full bg-black/10 px-4 py-2 text-sm font-bold">
+            {tipoVenda()}
+          </div>
         </div>
 
         <div className="my-6 border-t border-dashed border-black/30" />
@@ -102,12 +119,9 @@ export default function Cupom() {
 
           <div className="space-y-3">
             {itens.map((item) => {
-              const nomeProduto =
-                item.products?.name || "Produto";
+              const nomeProduto = item.products?.name || "Produto";
 
-              const subtotal =
-                Number(item.qty) *
-                Number(item.price);
+              const subtotal = Number(item.qty) * Number(item.price);
 
               return (
                 <div key={item.id}>
@@ -116,9 +130,7 @@ export default function Cupom() {
                       {item.qty}x {nomeProduto}
                     </span>
 
-                    <span>
-                      R$ {subtotal.toFixed(2)}
-                    </span>
+                    <span>R$ {subtotal.toFixed(2)}</span>
                   </div>
 
                   <p className="text-xs text-black/60">

@@ -17,6 +17,7 @@ export default function Historico() {
         *,
         orders (
           id,
+          table_id,
           order_items (
             id,
             product_id,
@@ -143,6 +144,10 @@ export default function Historico() {
     return new Date(data).toLocaleString("pt-BR");
   }
 
+  function tipoVenda(venda: any) {
+    return venda.orders?.table_id ? "🪑 Mesa/Comanda" : "⚡ Venda Rápida";
+  }
+
   useEffect(() => {
     carregar();
   }, []);
@@ -189,9 +194,15 @@ export default function Historico() {
             <div key={venda.id} className="rounded-3xl bg-[#103520] p-6">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold">Venda #{index + 1}</h2>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold">Venda #{index + 1}</h2>
 
-                  <p className="text-green-100/60">
+                    <span className="rounded-full bg-green-500/20 px-4 py-2 text-sm font-bold text-green-200">
+                      {tipoVenda(venda)}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-green-100/60">
                     {dataBR(venda.created_at)}
                   </p>
 
