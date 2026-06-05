@@ -5,425 +5,300 @@ import Header from "../../components/Header";
 import { supabase } from "../../lib/supabase";
 
 export default function Caixa() {
-
-const[
-vendas,
-setVendas
-]=
-useState<any[]>([]);
-
-const[
-resumo,
-setResumo
-]=
-useState({
-
-pix:0,
-
-cartao:0,
-
-dinheiro:0,
-
-total:0
-
-});
-
-async function carregar(){
-
-const{
-data
-}=
-
-await supabase
-
-.from(
-"sales"
-)
-
-.select("*")
-
-.order(
-"created_at",
-{
-ascending:false
-}
-);
-
-const lista=
-data||[];
-
-setVendas(
-lista
-);
-
-let pix=0;
-
-let cartao=0;
-
-let dinheiro=0;
-
-lista.forEach(
-
-v=>{
-
-const valor=
-Number(
-v.total
-);
-
-if(
-v.payment_method==="PIX"
-)
-
-pix+=valor;
-
-if(
-v.payment_method==="Cartão"
-)
-
-cartao+=valor;
-
-if(
-v.payment_method==="Dinheiro"
-)
-
-dinheiro+=valor;
-
-}
-
-);
-
-setResumo({
-
-pix,
-
-cartao,
-
-dinheiro,
-
-total:
-pix+
-cartao+
-dinheiro
-
-});
-
-}
-
-useEffect(
-()=>{
-carregar();
-},
-[]
-);
-
-return(
-
-<main
-className="
-min-h-screen
-bg-[#07130d]
-text-white
-p-8
-"
->
-
-<Header
-title="💰 Caixa"
-/>
-
-<div
-className="
-grid
-gap-5
-md:grid-cols-2
-xl:grid-cols-4
-"
->
-
-<div
-className="
-rounded-3xl
-bg-[#103520]
-p-8
-"
->
-
-<div
-className="
-text-4xl
-"
->
-
-🟢
-
-</div>
-
-<h2
-className="
-mt-5
-text-xl
-"
->
-
-PIX
-
-</h2>
-
-<div
-className="
-mt-4
-text-4xl
-font-bold
-"
->
-
-R$
-
-{
-resumo.pix.toFixed(
-2
-)
-}
-
-</div>
-
-</div>
-
-<div
-className="
-rounded-3xl
-bg-[#103520]
-p-8
-"
->
-
-<div
-className="
-text-4xl
-"
->
-
-💳
-
-</div>
-
-<h2
-className="
-mt-5
-text-xl
-"
->
-
-Cartão
-
-</h2>
-
-<div
-className="
-mt-4
-text-4xl
-font-bold
-"
->
-
-R$
-
-{
-resumo.cartao.toFixed(
-2
-)
-}
-
-</div>
-
-</div>
-
-<div
-className="
-rounded-3xl
-bg-[#103520]
-p-8
-"
->
-
-<div
-className="
-text-4xl
-"
->
-
-💵
-
-</div>
-
-<h2
-className="
-mt-5
-text-xl
-"
->
-
-Dinheiro
-
-</h2>
-
-<div
-className="
-mt-4
-text-4xl
-font-bold
-"
->
-
-R$
-
-{
-resumo.dinheiro.toFixed(
-2
-)
-}
-
-</div>
-
-</div>
-
-<div
-className="
-rounded-3xl
-bg-green-700
-p-8
-"
->
-
-<div
-className="
-text-4xl
-"
->
-
-💰
-
-</div>
-
-<h2
-className="
-mt-5
-text-xl
-"
->
-
-Total
-
-</h2>
-
-<div
-className="
-mt-4
-text-4xl
-font-bold
-"
->
-
-R$
-
-{
-resumo.total.toFixed(
-2
-)
-}
-
-</div>
-
-</div>
-
-</div>
-
-<div
-className="
-mt-10
-rounded-3xl
-bg-[#103520]
-p-8
-"
->
-
-<h2
-className="
-mb-6
-text-3xl
-font-bold
-"
->
-
-🧾 Últimas vendas
-
-</h2>
-
-<div
-className="
-space-y-4
-"
->
-
-{
-
-vendas.map(
-
-venda=>(
-
-<div
-
-key={
-venda.id
-}
-
-className="
-flex
-justify-between
-border-b
-border-white/10
-pb-4
-"
-
->
-
-<div>
-
-{
-venda.payment_method
-}
-
-</div>
-
-<div>
-
-R$
-
-{
-Number(
-venda.total
-).toFixed(
-2
-)
-}
-
-</div>
-
-</div>
-
-)
-
-)
-
-}
-
-</div>
-
-</div>
-
-</main>
-
-);
-
+  const [caixa, setCaixa] = useState<any>(null);
+  const [valorInicial, setValorInicial] = useState("");
+  const [vendas, setVendas] = useState<any[]>([]);
+
+  const [resumo, setResumo] = useState({
+    pix: 0,
+    cartao: 0,
+    dinheiro: 0,
+    vendas: 0,
+    total: 0,
+    totalComInicial: 0,
+  });
+
+  function numero(valor: string) {
+    return Number(valor.replace(",", "."));
+  }
+
+  async function carregar() {
+    const { data: caixaAberto } = await supabase
+      .from("cash_registers")
+      .select("*")
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    setCaixa(caixaAberto);
+
+    if (!caixaAberto) {
+      setVendas([]);
+      setResumo({
+        pix: 0,
+        cartao: 0,
+        dinheiro: 0,
+        vendas: 0,
+        total: 0,
+        totalComInicial: 0,
+      });
+
+      return;
+    }
+
+    const { data } = await supabase
+      .from("sales")
+      .select("*")
+      .gte("created_at", caixaAberto.opened_at)
+      .order("created_at", { ascending: false });
+
+    const lista = data || [];
+
+    setVendas(lista);
+
+    let pix = 0;
+    let cartao = 0;
+    let dinheiro = 0;
+
+    lista.forEach((venda) => {
+      const valor = Number(venda.total || 0);
+
+      if (venda.payment_method === "PIX") pix += valor;
+      if (venda.payment_method === "Cartão") cartao += valor;
+      if (venda.payment_method === "Dinheiro") dinheiro += valor;
+    });
+
+    const total = pix + cartao + dinheiro;
+    const inicial = Number(caixaAberto.opening_amount || 0);
+
+    setResumo({
+      pix,
+      cartao,
+      dinheiro,
+      vendas: lista.length,
+      total,
+      totalComInicial: total + inicial,
+    });
+  }
+
+  async function abrirCaixa() {
+    if (!valorInicial.trim()) {
+      alert("Digite o valor inicial do caixa");
+      return;
+    }
+
+    const { error } = await supabase.from("cash_registers").insert({
+      opening_amount: numero(valorInicial),
+      status: "open",
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert("Caixa aberto ☕");
+
+    setValorInicial("");
+    carregar();
+  }
+
+  async function fecharCaixa() {
+    if (!caixa) return;
+
+    const confirmar = confirm(
+      `Fechar caixa?\n\nVendas: R$ ${resumo.total.toFixed(
+        2
+      )}\nTotal com valor inicial: R$ ${resumo.totalComInicial.toFixed(2)}`
+    );
+
+    if (!confirmar) return;
+
+    const { error } = await supabase
+      .from("cash_registers")
+      .update({
+        status: "closed",
+        closing_amount: resumo.totalComInicial,
+        closed_at: new Date().toISOString(),
+      })
+      .eq("id", caixa.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert("Caixa fechado com sucesso");
+
+    carregar();
+  }
+
+  function dataBR(data: string) {
+    return new Date(data).toLocaleString("pt-BR");
+  }
+
+  useEffect(() => {
+    carregar();
+  }, []);
+
+  return (
+    <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
+      <Header title="💰 Caixa" />
+
+      {!caixa && (
+        <section className="max-w-xl rounded-3xl bg-[#103520] p-8">
+          <h2 className="text-3xl font-bold">Abrir caixa</h2>
+
+          <p className="mt-3 text-green-100/60">
+            Informe o valor inicial em dinheiro para começar o dia.
+          </p>
+
+          <div className="mt-6 space-y-4">
+            <input
+              value={valorInicial}
+              onChange={(e) => setValorInicial(e.target.value)}
+              placeholder="Valor inicial. Ex: 100,00"
+              className="w-full rounded-2xl bg-black/20 p-4 outline-none"
+            />
+
+            <button
+              onClick={abrirCaixa}
+              className="w-full rounded-2xl bg-green-600 py-4 font-bold hover:bg-green-500"
+            >
+              Abrir Caixa
+            </button>
+          </div>
+        </section>
+      )}
+
+      {caixa && (
+        <>
+          <section className="mb-10 rounded-3xl bg-green-700 p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-green-100/80">Status</p>
+
+                <h2 className="mt-2 text-4xl font-bold">Caixa Aberto</h2>
+
+                <p className="mt-2 text-green-100/80">
+                  Aberto em: {dataBR(caixa.opened_at)}
+                </p>
+              </div>
+
+              <button
+                onClick={fecharCaixa}
+                className="rounded-2xl bg-red-600/80 px-8 py-4 font-bold hover:bg-red-500"
+              >
+                Fechar Caixa
+              </button>
+            </div>
+          </section>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">💵</div>
+
+              <h2 className="mt-5 text-xl">Valor inicial</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {Number(caixa.opening_amount || 0).toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">🧾</div>
+
+              <h2 className="mt-5 text-xl">Vendas</h2>
+
+              <div className="mt-4 text-4xl font-bold">{resumo.vendas}</div>
+            </div>
+
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">💰</div>
+
+              <h2 className="mt-5 text-xl">Total vendas</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {resumo.total.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-green-700 p-8">
+              <div className="text-4xl">✅</div>
+
+              <h2 className="mt-5 text-xl">Total final</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {resumo.totalComInicial.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">🟢</div>
+
+              <h2 className="mt-5 text-xl">PIX</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {resumo.pix.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">💳</div>
+
+              <h2 className="mt-5 text-xl">Cartão</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {resumo.cartao.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-[#103520] p-8">
+              <div className="text-4xl">💵</div>
+
+              <h2 className="mt-5 text-xl">Dinheiro</h2>
+
+              <div className="mt-4 text-4xl font-bold">
+                R$ {resumo.dinheiro.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          <section className="mt-10 rounded-3xl bg-[#103520] p-8">
+            <h2 className="mb-6 text-3xl font-bold">🧾 Vendas do caixa</h2>
+
+            <div className="space-y-4">
+              {vendas.length === 0 && (
+                <p className="text-green-100/60">
+                  Nenhuma venda neste caixa ainda.
+                </p>
+              )}
+
+              {vendas.map((venda) => (
+                <div
+                  key={venda.id}
+                  className="flex justify-between border-b border-white/10 pb-4"
+                >
+                  <div>
+                    <strong>{venda.payment_method}</strong>
+
+                    <p className="text-sm text-green-100/60">
+                      {dataBR(venda.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="font-bold">
+                    R$ {Number(venda.total).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+    </main>
+  );
 }

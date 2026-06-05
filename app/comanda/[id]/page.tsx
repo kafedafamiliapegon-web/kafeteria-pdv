@@ -54,9 +54,29 @@ export default function Comanda() {
 
   const total = itens.reduce((soma, item) => soma + Number(item.price), 0);
 
+  async function verificarCaixaAberto() {
+    const { data } = await supabase
+      .from("cash_registers")
+      .select("*")
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return data;
+  }
+
   async function finalizarVenda() {
     if (itens.length === 0) {
       alert("Adicione pelo menos um item");
+      return;
+    }
+
+    const caixaAberto = await verificarCaixaAberto();
+
+    if (!caixaAberto) {
+      alert("O caixa está fechado. Abra o caixa antes de finalizar vendas.");
+      router.push("/caixa");
       return;
     }
 
