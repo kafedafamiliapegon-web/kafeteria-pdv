@@ -19,10 +19,13 @@ export default function Historico() {
           id,
           order_items (
             id,
+            product_id,
             qty,
             price,
             products (
-              name
+              id,
+              name,
+              stock
             )
           )
         )
@@ -44,16 +47,44 @@ export default function Historico() {
     setTotal(soma);
   }
 
+  async function devolverEstoque(itens: any[]) {
+    for (const item of itens) {
+      const produtoId = item.product_id || item.products?.id;
+
+      if (!produtoId) continue;
+
+      const estoqueAtual = Number(item.products?.stock || 0);
+      const quantidadeVendida = Number(item.qty || 0);
+      const novoEstoque = estoqueAtual + quantidadeVendida;
+
+      const { error } = await supabase
+        .from("products")
+        .update({
+          stock: novoEstoque,
+        })
+        .eq("id", produtoId);
+
+      if (error) {
+        alert(error.message);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   async function apagarVenda(venda: any) {
     const confirmar = confirm(
       `Apagar esta venda?\n\nValor: R$ ${Number(venda.total).toFixed(
         2
-      )}\nPagamento: ${venda.payment_method}\n\nEssa ação não apaga produtos cadastrados.`
+      )}\nPagamento: ${
+        venda.payment_method
+      }\n\nO estoque dos itens vendidos será devolvido.`
     );
 
     if (!confirmar) return;
 
-    const palavra = prompt('Para confirmar, digite exatamente: APAGAR');
+    const palavra = prompt("Para confirmar, digite exatamente: APAGAR");
 
     if (palavra !== "APAGAR") {
       alert("Operação cancelada.");
@@ -61,6 +92,13 @@ export default function Historico() {
     }
 
     const orderId = venda.order_id || venda.orders?.id;
+    const itens = venda.orders?.order_items || [];
+
+    if (itens.length > 0) {
+      const estoqueOk = await devolverEstoque(itens);
+
+      if (!estoqueOk) return;
+    }
 
     if (orderId) {
       const { error: itemsError } = await supabase
@@ -96,7 +134,7 @@ export default function Historico() {
       }
     }
 
-    alert("Venda apagada com sucesso.");
+    alert("Venda apagada e estoque devolvido com sucesso.");
 
     carregar();
   }
