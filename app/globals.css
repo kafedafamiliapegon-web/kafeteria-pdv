@@ -19,10 +19,14 @@
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 /* =========================
@@ -32,10 +36,24 @@ body {
 .pdv-page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(10, 125, 73, 0.18), transparent 34%),
-    linear-gradient(135deg, #020f0a 0%, #03170f 50%, #020806 100%);
+    radial-gradient(circle at 8% 4%, rgba(38, 185, 104, 0.18), transparent 28%),
+    radial-gradient(circle at 78% 12%, rgba(10, 94, 56, 0.22), transparent 34%),
+    linear-gradient(135deg, #010c08 0%, #02140d 48%, #010705 100%);
   color: white;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.pdv-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
 
 .pdv-shell {
@@ -45,14 +63,16 @@ body {
 }
 
 .pdv-sidebar {
+  position: relative;
   background:
-    radial-gradient(circle at top, rgba(20, 150, 85, 0.16), transparent 38%),
-    #03170f;
-  border-right: 1px solid rgba(120, 255, 180, 0.1);
+    radial-gradient(circle at top, rgba(31, 180, 93, 0.17), transparent 36%),
+    linear-gradient(180deg, #031b11 0%, #02110b 100%);
+  border-right: 1px solid rgba(151, 255, 190, 0.12);
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  box-shadow: 18px 0 60px rgba(0, 0, 0, 0.22);
 }
 
 .pdv-brand {
@@ -69,22 +89,29 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 80, 47, 0.72);
-  border: 2px solid rgba(34, 197, 94, 0.42);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.2), transparent 18%),
+    linear-gradient(145deg, rgba(17, 108, 62, 0.95), rgba(6, 48, 30, 0.95));
+  border: 1px solid rgba(99, 255, 157, 0.42);
   font-size: 34px;
-  box-shadow: 0 0 28px rgba(22, 163, 74, 0.16);
+  box-shadow:
+    0 0 34px rgba(34, 197, 94, 0.16),
+    inset 0 0 18px rgba(255, 255, 255, 0.05);
 }
 
 .pdv-brand-title {
-  font-size: 25px;
-  font-weight: 900;
-  line-height: 1.05;
+  font-size: 26px;
+  font-weight: 950;
+  line-height: 0.95;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
 }
 
 .pdv-brand-subtitle {
-  margin-top: 6px;
+  margin-top: 7px;
+  max-width: 155px;
   font-size: 12px;
-  color: rgba(220, 255, 230, 0.62);
+  line-height: 1.25;
+  color: rgba(220, 255, 230, 0.64);
 }
 
 .pdv-menu {
@@ -102,20 +129,29 @@ body {
   color: white;
   text-decoration: none;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 850;
   transition: 0.18s ease;
+  border: 1px solid transparent;
 }
 
-.pdv-menu-item:hover,
+.pdv-menu-item:hover {
+  background: rgba(18, 118, 64, 0.42);
+  border-color: rgba(150, 255, 190, 0.11);
+  transform: translateX(3px);
+}
+
 .pdv-menu-item.active {
-  background: linear-gradient(135deg, #08783d, #075b31);
-  box-shadow: inset 0 0 0 1px rgba(150, 255, 190, 0.12);
+  background: linear-gradient(135deg, #0b873f, #086632);
+  box-shadow:
+    inset 0 0 0 1px rgba(177, 255, 205, 0.13),
+    0 14px 28px rgba(0, 0, 0, 0.22);
 }
 
 .pdv-menu-icon {
   font-size: 22px;
   width: 26px;
   text-align: center;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.35));
 }
 
 .pdv-sidebar-bottom {
@@ -129,40 +165,44 @@ body {
   display: flex;
   align-items: center;
   gap: 13px;
-  background: rgba(11, 61, 38, 0.82);
-  border: 1px solid rgba(150, 255, 190, 0.1);
+  background:
+    radial-gradient(circle at top left, rgba(42, 216, 112, 0.13), transparent 42%),
+    rgba(11, 61, 38, 0.82);
+  border: 1px solid rgba(150, 255, 190, 0.13);
   border-radius: 18px;
   padding: 15px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
 }
 
 .pdv-user-avatar {
   width: 46px;
   height: 46px;
   border-radius: 999px;
-  background: #16a34a;
+  background: linear-gradient(135deg, #18d163, #0d9347);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
+  font-weight: 950;
+  box-shadow: 0 8px 20px rgba(24, 209, 99, 0.24);
 }
 
 .pdv-user-name {
-  font-weight: 900;
+  font-weight: 950;
 }
 
 .pdv-user-email {
   margin-top: 3px;
   font-size: 12px;
-  color: rgba(220, 255, 230, 0.55);
+  color: rgba(220, 255, 230, 0.56);
 }
 
 .pdv-logout {
-  border: none;
+  border: 1px solid rgba(150, 255, 190, 0.08);
   background: rgba(11, 61, 38, 0.82);
   color: white;
   border-radius: 16px;
   padding: 16px 18px;
-  font-weight: 900;
+  font-weight: 950;
   font-size: 16px;
   text-align: left;
   cursor: pointer;
@@ -171,6 +211,7 @@ body {
 
 .pdv-logout:hover {
   background: rgba(220, 38, 38, 0.82);
+  border-color: rgba(255, 190, 190, 0.18);
 }
 
 .pdv-main {
@@ -190,10 +231,12 @@ body {
 }
 
 .pdv-hero {
+  position: relative;
+  overflow: hidden;
   background:
-    radial-gradient(circle at left, rgba(20, 150, 85, 0.24), transparent 35%),
-    linear-gradient(135deg, rgba(8, 81, 48, 0.95), rgba(5, 46, 30, 0.96));
-  border: 1px solid rgba(150, 255, 190, 0.12);
+    radial-gradient(circle at 18% 8%, rgba(42, 216, 112, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(8, 91, 52, 0.98), rgba(4, 50, 31, 0.98));
+  border: 1px solid rgba(150, 255, 190, 0.14);
   border-radius: 22px;
   padding: 24px 28px;
   display: flex;
@@ -202,25 +245,47 @@ body {
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
 }
 
+.pdv-hero::after {
+  content: "";
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  right: -120px;
+  top: -150px;
+  border-radius: 999px;
+  background: rgba(76, 255, 139, 0.09);
+  filter: blur(2px);
+}
+
 .pdv-hero-small {
-  color: rgba(220, 255, 230, 0.78);
+  position: relative;
+  z-index: 1;
+  color: rgba(220, 255, 230, 0.8);
   font-size: 14px;
+  font-weight: 650;
 }
 
 .pdv-hero-title {
+  position: relative;
+  z-index: 1;
   margin-top: 8px;
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 950;
-  line-height: 1.05;
+  line-height: 1.03;
+  text-shadow: 0 6px 22px rgba(0, 0, 0, 0.38);
 }
 
 .pdv-hero-text {
+  position: relative;
+  z-index: 1;
   margin-top: 9px;
   color: rgba(220, 255, 230, 0.7);
   font-size: 15px;
 }
 
 .pdv-hero-info {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -229,13 +294,14 @@ body {
 
 .pdv-info-card {
   background: rgba(5, 55, 34, 0.72);
-  border: 1px solid rgba(150, 255, 190, 0.12);
+  border: 1px solid rgba(150, 255, 190, 0.13);
   border-radius: 18px;
   padding: 15px 17px;
+  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.02);
 }
 
 .pdv-info-label {
-  font-weight: 900;
+  font-weight: 950;
 }
 
 .pdv-info-muted {
@@ -252,12 +318,17 @@ body {
 
 .pdv-stat-card {
   background:
-    radial-gradient(circle at right, rgba(20, 150, 85, 0.16), transparent 35%),
-    #06351f;
-  border: 1px solid rgba(150, 255, 190, 0.1);
+    radial-gradient(circle at right, rgba(50, 220, 117, 0.12), transparent 36%),
+    linear-gradient(135deg, #06391f, #052e1c);
+  border: 1px solid rgba(150, 255, 190, 0.12);
   border-radius: 18px;
   padding: 18px;
   min-height: 108px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+}
+
+.pdv-stat-card:hover {
+  border-color: rgba(150, 255, 190, 0.22);
 }
 
 .pdv-stat-top {
@@ -270,38 +341,41 @@ body {
   text-transform: uppercase;
   color: rgba(220, 255, 230, 0.66);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
+  letter-spacing: 0.04em;
 }
 
 .pdv-stat-icon {
   width: 50px;
   height: 50px;
   border-radius: 999px;
-  background: rgba(4, 40, 26, 0.85);
+  background: rgba(4, 40, 26, 0.86);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  border: 1px solid rgba(150, 255, 190, 0.1);
+  border: 1px solid rgba(150, 255, 190, 0.12);
+  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.03);
 }
 
 .pdv-stat-value {
   margin-top: 8px;
-  font-size: 27px;
+  font-size: 29px;
   font-weight: 950;
 }
 
 .pdv-stat-note {
   margin-top: 6px;
-  color: #5ee98b;
+  color: #67f292;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .pdv-panel {
   background:
-    radial-gradient(circle at top left, rgba(20, 150, 85, 0.16), transparent 34%),
-    #06351f;
-  border: 1px solid rgba(150, 255, 190, 0.1);
+    radial-gradient(circle at top left, rgba(20, 150, 85, 0.14), transparent 34%),
+    linear-gradient(135deg, #06391f, #052d1c);
+  border: 1px solid rgba(150, 255, 190, 0.12);
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
@@ -316,23 +390,34 @@ body {
 }
 
 .pdv-panel-title {
-  font-size: 25px;
+  font-size: 26px;
   font-weight: 950;
+  text-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 .pdv-panel-subtitle {
   margin-top: 4px;
-  color: rgba(220, 255, 230, 0.62);
+  color: rgba(220, 255, 230, 0.64);
   font-size: 14px;
 }
 
 .pdv-search {
-  background: rgba(3, 30, 20, 0.76);
-  border: 1px solid rgba(150, 255, 190, 0.12);
-  color: rgba(220, 255, 230, 0.65);
+  background: rgba(3, 30, 20, 0.82);
+  border: 1px solid rgba(150, 255, 190, 0.14);
+  color: white;
   border-radius: 14px;
   padding: 12px 18px;
   min-width: 270px;
+  outline: none;
+}
+
+.pdv-search:focus {
+  border-color: rgba(103, 242, 146, 0.48);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.pdv-search::placeholder {
+  color: rgba(220, 255, 230, 0.45);
 }
 
 .pdv-tabs {
@@ -343,17 +428,26 @@ body {
 }
 
 .pdv-tab {
+  border: none;
+  cursor: pointer;
   padding: 9px 15px;
   border-radius: 11px;
   background: rgba(4, 54, 34, 0.9);
   color: rgba(220, 255, 230, 0.72);
-  font-weight: 800;
+  font-weight: 850;
   font-size: 13px;
+  transition: 0.16s ease;
+}
+
+.pdv-tab:hover {
+  background: rgba(8, 92, 50, 0.95);
+  color: white;
 }
 
 .pdv-tab.active {
-  background: #16a34a;
+  background: linear-gradient(135deg, #21c45d, #119547);
   color: white;
+  box-shadow: 0 8px 18px rgba(17, 149, 71, 0.24);
 }
 
 .pdv-products {
@@ -363,18 +457,22 @@ body {
 }
 
 .pdv-product-card {
+  cursor: pointer;
   overflow: hidden;
-  background: #082b1c;
-  border: 1px solid rgba(150, 255, 190, 0.1);
+  background: linear-gradient(180deg, #082f1e, #062718);
+  border: 1px solid rgba(150, 255, 190, 0.11);
   border-radius: 14px;
   text-decoration: none;
   color: white;
   transition: 0.18s ease;
+  text-align: left;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
 }
 
 .pdv-product-card:hover {
   transform: translateY(-4px);
-  background: #0b3925;
+  background: linear-gradient(180deg, #0b3b26, #082f1e);
+  border-color: rgba(150, 255, 190, 0.22);
 }
 
 .pdv-product-image {
@@ -386,7 +484,9 @@ body {
 
 .pdv-product-empty {
   height: 105px;
-  background: rgba(0, 0, 0, 0.18);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.06), transparent 45%),
+    rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -398,8 +498,15 @@ body {
 }
 
 .pdv-product-name {
-  font-weight: 900;
+  font-weight: 950;
   font-size: 14px;
+}
+
+.pdv-product-stock {
+  margin-top: 5px;
+  color: rgba(220, 255, 230, 0.57);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .pdv-product-bottom {
@@ -410,7 +517,7 @@ body {
 }
 
 .pdv-product-price {
-  color: #77f89d;
+  color: #7cff9f;
   font-weight: 950;
 }
 
@@ -418,12 +525,13 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: #168a45;
+  background: linear-gradient(135deg, #20c75d, #119646);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 21px;
   font-weight: 950;
+  box-shadow: 0 8px 18px rgba(17, 150, 70, 0.25);
 }
 
 .pdv-more {
@@ -437,14 +545,21 @@ body {
   padding: 12px 32px;
   color: white;
   text-decoration: none;
-  border: 1px solid rgba(150, 255, 190, 0.12);
-  background: rgba(3, 30, 20, 0.58);
-  font-weight: 900;
+  border: 1px solid rgba(150, 255, 190, 0.13);
+  background: rgba(3, 30, 20, 0.62);
+  font-weight: 950;
+  transition: 0.16s ease;
+}
+
+.pdv-more-link:hover {
+  background: rgba(8, 92, 50, 0.75);
 }
 
 .pdv-cart {
-  background: #06351f;
-  border: 1px solid rgba(150, 255, 190, 0.1);
+  background:
+    radial-gradient(circle at top right, rgba(35, 190, 94, 0.13), transparent 34%),
+    linear-gradient(180deg, #06381f, #052d1b);
+  border: 1px solid rgba(150, 255, 190, 0.12);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
@@ -468,11 +583,11 @@ body {
 
 .pdv-pill {
   background: rgba(26, 185, 82, 0.25);
-  color: #94f7b0;
+  color: #9effb8;
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 950;
 }
 
 .pdv-cart-body {
@@ -485,18 +600,42 @@ body {
   gap: 13px;
 }
 
+.pdv-cart-empty {
+  border: 1px dashed rgba(150, 255, 190, 0.2);
+  background: rgba(3, 30, 20, 0.38);
+  border-radius: 16px;
+  padding: 22px;
+  text-align: center;
+  color: rgba(220, 255, 230, 0.72);
+}
+
+.pdv-cart-empty-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+  opacity: 0.82;
+}
+
+.pdv-cart-empty p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(220, 255, 230, 0.5);
+}
+
 .pdv-cart-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  padding-bottom: 13px;
-  border-bottom: 1px solid rgba(150, 255, 190, 0.08);
+  padding: 14px;
+  border: 1px solid rgba(150, 255, 190, 0.1);
+  border-radius: 16px;
+  background: rgba(3, 30, 20, 0.34);
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.015);
 }
 
 .pdv-cart-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -509,10 +648,21 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 27px;
+  overflow: hidden;
+}
+
+.pdv-cart-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pdv-cart-info {
+  min-width: 0;
 }
 
 .pdv-cart-name {
-  font-weight: 900;
+  font-weight: 950;
 }
 
 .pdv-cart-muted {
@@ -521,18 +671,62 @@ body {
   font-size: 12px;
 }
 
-.pdv-cart-price {
+.pdv-cart-actions {
+  margin-top: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.pdv-qty-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 9px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.25);
+  color: white;
   font-weight: 950;
+}
+
+.pdv-qty-btn.active {
+  background: #16a34a;
+}
+
+.pdv-qty-number {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 950;
+}
+
+.pdv-remove-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 9px;
+  height: 30px;
+  padding: 0 11px;
+  background: rgba(220, 38, 38, 0.85);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.pdv-cart-price {
+  white-space: nowrap;
+  font-weight: 950;
+  color: white;
 }
 
 .pdv-note {
   margin-top: 15px;
-  border: 1px dashed rgba(150, 255, 190, 0.2);
+  border: 1px dashed rgba(150, 255, 190, 0.22);
   border-radius: 14px;
   padding: 13px;
   text-align: center;
   color: rgba(220, 255, 230, 0.72);
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .pdv-totals {
@@ -565,12 +759,16 @@ body {
   font-size: 32px;
   font-weight: 950;
   color: #65f58e;
+  text-shadow: 0 0 18px rgba(101, 245, 142, 0.18);
 }
 
 .pdv-finish {
+  width: 100%;
+  border: none;
+  cursor: pointer;
   display: block;
   margin-top: 17px;
-  background: #18b557;
+  background: linear-gradient(135deg, #20c75d, #12a64c);
   color: white;
   text-align: center;
   text-decoration: none;
@@ -578,6 +776,11 @@ body {
   padding: 16px;
   font-size: 17px;
   font-weight: 950;
+  box-shadow: 0 12px 24px rgba(18, 166, 76, 0.24);
+}
+
+.pdv-finish:hover {
+  background: linear-gradient(135deg, #28d969, #16b856);
 }
 
 .pdv-payment-row {
@@ -588,13 +791,26 @@ body {
 }
 
 .pdv-payment {
+  cursor: pointer;
   border: 1px solid rgba(150, 255, 190, 0.12);
   border-radius: 12px;
   padding: 11px;
   text-align: center;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 950;
   background: rgba(3, 30, 20, 0.5);
+  color: white;
+  transition: 0.16s ease;
+}
+
+.pdv-payment:hover {
+  background: rgba(8, 92, 50, 0.7);
+}
+
+.pdv-payment.active {
+  background: linear-gradient(135deg, #20c75d, #119647);
+  border-color: rgba(167, 255, 190, 0.55);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18);
 }
 
 .pdv-safe {

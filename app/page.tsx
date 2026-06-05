@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
+type ItemCarrinho = {
+  produto: any;
+  qty: number;
+};
+
 export default function Dashboard() {
   const router = useRouter();
 
@@ -17,6 +22,12 @@ export default function Dashboard() {
 
   const [produtos, setProdutos] = useState<any[]>([]);
   const [ultimas, setUltimas] = useState<any[]>([]);
+  const [usuario, setUsuario] = useState<any>(null);
+
+  const [itens, setItens] = useState<ItemCarrinho[]>([]);
+  const [pagamento, setPagamento] = useState("PIX");
+  const [busca, setBusca] = useState("");
+  const [categoriaAtual, setCategoriaAtual] = useState("Todos");
 
   async function sair() {
     const confirmar = confirm("Deseja sair do sistema?");
@@ -29,6 +40,10 @@ export default function Dashboard() {
   }
 
   async function carregar() {
+    const { data: userData } = await supabase.auth.getUser();
+
+    setUsuario(userData.user);
+
     const [sales, tables, products] = await Promise.all([
       supabase
         .from("sales")
@@ -80,6 +95,171 @@ export default function Dashboard() {
     });
   }
 
+  function adicionar(produto: any) {
+    if (Number(produto.stock) <= 0) {
+      alert("Produto sem estoque");
+      return;
+    }
+
+    setItens((atual) => {
+      const existente = atual.find((item) => item.produto.id === produto.id);
+
+      if (existente) {
+        if (existente.qty >= Number(produto.stock)) {
+          alert("Estoque insuficiente");
+          return atual;
+        }
+
+        return atual.map((item) =>
+          item.produto.id === produto.id
+            ? {
+                ...item,
+                qty: item.qty + 1,
+              }
+            : item
+        );
+      }
+
+      return [
+        ...atual,
+        {
+          produto,
+          qty: 1,
+        },
+      ];
+    });
+  }
+
+  function diminuir(produtoId: string) {
+    setItens((atual) =>
+      atual
+        .map((item) =>
+          item.produto.id === produtoId
+            ? {
+                ...item,
+                qty: item.qty - 1,
+              }
+            : item
+        )
+        .filter((item) => item.qty > 0)
+    );
+  }
+
+  function remover(produtoId: string) {
+    setItens((atual) => atual.filter((item) => item.produto.id !== produtoId));
+  }
+
+  const totalCarrinho = itens.reduce(
+    (soma, item) => soma + Number(item.produto.price) * item.qty,
+    0
+  );
+
+  const quantidadeCarrinho = itens.reduce((soma, item) => soma + item.qty, 0);
+
+  async function verificarCaixaAberto() {
+    const { data } = await supabase
+      .from("cash_registers")
+      .select("*")
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return data;
+  }
+
+  async function finalizarVenda() {
+    if (itens.length === 0) {
+      alert("Adicione pelo menos um item no carrinho");
+      return;
+    }
+
+    const caixaAberto = await verificarCaixaAberto();
+
+    if (!caixaAberto) {
+      alert("O caixa está fechado. Abra o caixa antes de finalizar vendas.");
+      router.push("/caixa");
+      return;
+    }
+
+    const confirmar = confirm(
+      `Finalizar venda de ${dinheiro(totalCarrinho)} em ${pagamento}?`
+    );
+
+    if (!confirmar) return;
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        table_id: null,
+        status: "closed",
+        subtotal: totalCarrinho,
+        discount: 0,
+        total: totalCarrinho,
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      alert(orderError.message);
+      return;
+    }
+
+    const orderItems = itens.map((item) => ({
+      order_id: order.id,
+      product_id: item.produto.id,
+      qty: item.qty,
+      price: Number(item.produto.price),
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      alert(itemsError.message);
+      return;
+    }
+
+    for (const item of itens) {
+      const novoEstoque = Number(item.produto.stock) - item.qty;
+
+      const { error: stockError } = await supabase
+        .from("products")
+        .update({
+          stock: novoEstoque,
+        })
+        .eq("id", item.produto.id);
+
+      if (stockError) {
+        alert(stockError.message);
+        return;
+      }
+    }
+
+    const { data: sale, error: saleError } = await supabase
+      .from("sales")
+      .insert({
+        payment_method: pagamento,
+        total: totalCarrinho,
+        order_id: order.id,
+        cash_register_id: caixaAberto.id,
+      })
+      .select()
+      .single();
+
+    if (saleError) {
+      alert(saleError.message);
+      return;
+    }
+
+    alert("Venda finalizada com sucesso ☕");
+
+    setItens([]);
+
+    router.push(`/cupom/${sale.id}`);
+  }
+
   useEffect(() => {
     carregar();
   }, []);
@@ -89,8 +269,6 @@ export default function Dashboard() {
     ["🛒", "Venda", "/venda-rapida"],
     ["🪑", "Mesas", "/mesas"],
     ["📦", "Produtos", "/produtos"],
-    ["🏷️", "Categorias", "/produtos"],
-    ["👥", "Clientes", "/historico"],
     ["💰", "Caixa", "/caixa"],
     ["📊", "Relatórios", "/relatorios"],
     ["🕒", "Histórico", "/historico"],
@@ -108,8 +286,23 @@ export default function Dashboard() {
     "Outros",
   ];
 
-  const produtosVitrine = produtos.slice(0, 10);
-  const carrinhoVisual = ultimas.slice(0, 4);
+  const produtosFiltrados = produtos
+    .filter((produto) =>
+      produto.name.toLowerCase().includes(busca.toLowerCase())
+    )
+    .filter((produto) => {
+      if (categoriaAtual === "Todos") return true;
+
+      return (produto.category || "Outros") === categoriaAtual;
+    })
+    .slice(0, 10);
+
+  const nomeUsuario =
+    usuario?.user_metadata?.name ||
+    usuario?.email?.split("@")[0] ||
+    "Administrador";
+
+  const emailUsuario = usuario?.email || "admin@kafeteria.com";
 
   return (
     <main className="pdv-page">
@@ -141,11 +334,13 @@ export default function Dashboard() {
 
           <div className="pdv-sidebar-bottom">
             <div className="pdv-user-card">
-              <div className="pdv-user-avatar">AD</div>
+              <div className="pdv-user-avatar">
+                {String(nomeUsuario).slice(0, 2).toUpperCase()}
+              </div>
 
               <div>
-                <div className="pdv-user-name">Administrador</div>
-                <div className="pdv-user-email">admin@kafeteria.com</div>
+                <div className="pdv-user-name">{nomeUsuario}</div>
+                <div className="pdv-user-email">{emailUsuario}</div>
               </div>
             </div>
 
@@ -161,7 +356,7 @@ export default function Dashboard() {
               <header className="pdv-hero">
                 <div>
                   <div className="pdv-hero-small">
-                    Bom dia, Administrador! ☕
+                    Bom dia, {nomeUsuario}! ☕
                   </div>
 
                   <h1 className="pdv-hero-title">
@@ -231,46 +426,54 @@ export default function Dashboard() {
                   <div>
                     <h2 className="pdv-panel-title">Venda rápida</h2>
                     <p className="pdv-panel-subtitle">
-                      Selecione os produtos para adicionar ao carrinho.
+                      Clique no produto ou no botão + para adicionar ao carrinho.
                     </p>
                   </div>
 
-                  <Link href="/venda-rapida" className="pdv-search">
-                    Buscar produto...
-                  </Link>
+                  <input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar produto..."
+                    className="pdv-search"
+                  />
                 </div>
 
                 <div className="pdv-tabs">
-                  {categorias.map((categoria, index) => (
-                    <span
+                  {categorias.map((categoria) => (
+                    <button
                       key={categoria}
-                      className={`pdv-tab ${index === 0 ? "active" : ""}`}
+                      onClick={() => setCategoriaAtual(categoria)}
+                      className={`pdv-tab ${
+                        categoriaAtual === categoria ? "active" : ""
+                      }`}
                     >
                       {categoria}
-                    </span>
+                    </button>
                   ))}
                 </div>
 
                 <div className="pdv-products">
-                  {produtosVitrine.length === 0 && (
+                  {produtosFiltrados.length === 0 && (
                     <Link href="/produtos" className="pdv-product-card">
                       <div className="pdv-product-empty">☕</div>
+
                       <div className="pdv-product-body">
                         <div className="pdv-product-name">
-                          Cadastre produtos
+                          Nenhum produto encontrado
                         </div>
+
                         <div className="pdv-product-bottom">
-                          <span className="pdv-product-price">Começar</span>
+                          <span className="pdv-product-price">Produtos</span>
                           <span className="pdv-plus">+</span>
                         </div>
                       </div>
                     </Link>
                   )}
 
-                  {produtosVitrine.map((produto) => (
-                    <Link
+                  {produtosFiltrados.map((produto) => (
+                    <button
                       key={produto.id}
-                      href="/venda-rapida"
+                      onClick={() => adicionar(produto)}
                       className="pdv-product-card"
                     >
                       {produto.image_url ? (
@@ -285,6 +488,10 @@ export default function Dashboard() {
                       <div className="pdv-product-body">
                         <div className="pdv-product-name">{produto.name}</div>
 
+                        <div className="pdv-product-stock">
+                          Estoque: {produto.stock}
+                        </div>
+
                         <div className="pdv-product-bottom">
                           <span className="pdv-product-price">
                             {dinheiro(produto.price)}
@@ -293,7 +500,7 @@ export default function Dashboard() {
                           <span className="pdv-plus">+</span>
                         </div>
                       </div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
 
@@ -313,38 +520,80 @@ export default function Dashboard() {
                     <span>Carrinho</span>
                   </div>
 
-                  <span className="pdv-pill">{carrinhoVisual.length} itens</span>
+                  <span className="pdv-pill">{quantidadeCarrinho} itens</span>
                 </div>
 
                 <div className="pdv-cart-body">
                   <div className="pdv-cart-items">
-                    {carrinhoVisual.length === 0 && (
-                      <div className="pdv-cart-muted">
-                        Nenhuma venda recente ainda.
+                    {itens.length === 0 && (
+                      <div className="pdv-cart-empty">
+                        <div className="pdv-cart-empty-icon">🛒</div>
+                        <strong>Carrinho vazio</strong>
+                        <p>Adicione produtos pela venda rápida.</p>
                       </div>
                     )}
 
-                    {carrinhoVisual.map((venda, index) => (
-                      <div key={venda.id} className="pdv-cart-item">
-                        <div className="pdv-cart-left">
-                          <div className="pdv-cart-thumb">☕</div>
+                    {itens.map((item) => {
+                      const subtotal = Number(item.produto.price) * item.qty;
 
-                          <div>
-                            <div className="pdv-cart-name">
-                              Venda #{index + 1}
+                      return (
+                        <div key={item.produto.id} className="pdv-cart-item">
+                          <div className="pdv-cart-left">
+                            <div className="pdv-cart-thumb">
+                              {item.produto.image_url ? (
+                                <img
+                                  src={item.produto.image_url}
+                                  className="pdv-cart-image"
+                                />
+                              ) : (
+                                "☕"
+                              )}
                             </div>
 
-                            <div className="pdv-cart-muted">
-                              {venda.payment_method}
+                            <div className="pdv-cart-info">
+                              <div className="pdv-cart-name">
+                                {item.produto.name}
+                              </div>
+
+                              <div className="pdv-cart-muted">
+                                {item.qty}x {dinheiro(item.produto.price)}
+                              </div>
+
+                              <div className="pdv-cart-actions">
+                                <button
+                                  onClick={() => diminuir(item.produto.id)}
+                                  className="pdv-qty-btn"
+                                >
+                                  −
+                                </button>
+
+                                <span className="pdv-qty-number">
+                                  {item.qty}
+                                </span>
+
+                                <button
+                                  onClick={() => adicionar(item.produto)}
+                                  className="pdv-qty-btn active"
+                                >
+                                  +
+                                </button>
+
+                                <button
+                                  onClick={() => remover(item.produto.id)}
+                                  className="pdv-remove-btn"
+                                >
+                                  Remover
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="pdv-cart-price">
-                          {dinheiro(venda.total)}
+                          <div className="pdv-cart-price">
+                            {dinheiro(subtotal)}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="pdv-note">✎ Adicionar observação</div>
@@ -352,7 +601,7 @@ export default function Dashboard() {
                   <div className="pdv-totals">
                     <div className="pdv-total-row">
                       <span>Subtotal</span>
-                      <span>{dinheiro(dados.vendas)}</span>
+                      <span>{dinheiro(totalCarrinho)}</span>
                     </div>
 
                     <div className="pdv-total-row">
@@ -362,18 +611,26 @@ export default function Dashboard() {
 
                     <div className="pdv-total-final">
                       <strong>Total</strong>
-                      <span>{dinheiro(dados.vendas)}</span>
+                      <span>{dinheiro(totalCarrinho)}</span>
                     </div>
                   </div>
 
-                  <Link href="/venda-rapida" className="pdv-finish">
+                  <button onClick={finalizarVenda} className="pdv-finish">
                     💳 Finalizar venda
-                  </Link>
+                  </button>
 
                   <div className="pdv-payment-row">
-                    <span className="pdv-payment">PIX</span>
-                    <span className="pdv-payment">Cartão</span>
-                    <span className="pdv-payment">Dinheiro</span>
+                    {["PIX", "Cartão", "Dinheiro"].map((tipo) => (
+                      <button
+                        key={tipo}
+                        onClick={() => setPagamento(tipo)}
+                        className={`pdv-payment ${
+                          pagamento === tipo ? "active" : ""
+                        }`}
+                      >
+                        {tipo}
+                      </button>
+                    ))}
                   </div>
 
                   <div className="pdv-safe">
