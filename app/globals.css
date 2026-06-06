@@ -1235,3 +1235,116 @@ body {
     font-size: 26px;
   }
 }
+
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  .print\:hidden,
+  .pdv-hero,
+  .pdv-sidebar,
+  .pdv-sidebar *,
+  button {
+    display: none !important;
+  }
+
+  .pdv-page,
+  .pdv-main,
+  .print-area {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .pdv-page::before,
+  .pdv-page::after {
+    display: none !important;
+  }
+
+  .receipt-paper {
+    position: static !important;
+    display: block !important;
+    width: 80mm !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 auto !important;
+    padding: 8mm !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #d8d8d8 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .receipt-paper,
+  .receipt-paper * {
+    color: #000000 !important;
+    background-color: transparent !important;
+  }
+
+  .receipt-logo {
+    width: 22mm !important;
+    height: 22mm !important;
+    margin: 0 auto 4mm !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .receipt-logo img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  .receipt-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6mm !important;
+    padding: 3mm 0 !important;
+    border-top: 1px dashed #b7b7b7 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .receipt-total {
+    padding-top: 3mm !important;
+    border-top: 1px solid #000000 !important;
+    font-size: 15pt !important;
+  }
+}

@@ -181,14 +181,15 @@ export default function Cupom() {
           />
         </div>
 
-        <section
-          className="mx-auto max-w-md rounded-[28px] bg-[#fffdf2] p-7 text-[#123b24] shadow-2xl shadow-black/20 print:rounded-none print:p-4 print:shadow-none"
-          style={{
-            border: "1px solid rgba(18, 59, 36, 0.12)",
-          }}
-        >
+        <div className="print-area">
+          <section
+            className="receipt-paper mx-auto max-w-md rounded-[28px] bg-[#fffdf2] p-7 text-[#123b24] shadow-2xl shadow-black/20"
+            style={{
+              border: "1px solid rgba(18, 59, 36, 0.12)",
+            }}
+          >
           <div className="text-center">
-            <div className="mx-auto h-24 w-24 rounded-[28px] border border-[#0b5a34]/12 bg-white/80 p-3">
+            <div className="receipt-logo mx-auto h-24 w-24 rounded-[28px] border border-[#0b5a34]/12 bg-white/80 p-3">
               <LogoKafeteria />
             </div>
 
@@ -270,7 +271,7 @@ export default function Cupom() {
                     return (
                       <div
                         key={item.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-2xl bg-[#f8f6ea] p-4"
+                        className="receipt-item grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-2xl bg-[#f8f6ea] p-4"
                       >
                         <div>
                           <div className="font-black">
@@ -293,7 +294,7 @@ export default function Cupom() {
 
               <div className="my-6 border-t border-dashed border-[#123b24]/25" />
 
-              <div className="flex items-center justify-between text-2xl font-black">
+              <div className="receipt-total flex items-center justify-between text-2xl font-black">
                 <span>Total</span>
                 <span className="text-[#0b7d42]">{dinheiro(venda.total)}</span>
               </div>
@@ -305,7 +306,8 @@ export default function Cupom() {
               </p>
             </>
           )}
-        </section>
+          </section>
+        </div>
 
         {!carregando && !erro && venda && (
           <div className="mx-auto mt-6 max-w-md print:hidden">
