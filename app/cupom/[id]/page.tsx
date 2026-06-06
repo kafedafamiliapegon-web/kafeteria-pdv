@@ -1,167 +1,669 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Header from "../../../components/Header";
 import { supabase } from "../../../lib/supabase";
 
-export default function Cupom() {
-  const { id } = useParams();
+type ItemCarrinho = {
+  produto: any;
+  qty: number;
+};
 
-  const [venda, setVenda] = useState<any>(null);
-  const [pedido, setPedido] = useState<any>(null);
-  const [config, setConfig] = useState<any>(null);
-  const [itens, setItens] = useState<any[]>([]);
+function LogoKafeteria() {
+  return (
+    <img
+      src="/logo.png"
+      alt="Logo Kafeteria"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        display: "block",
+      }}
+    />
+  );
+}
+
+const categorias = [
+  "Todos",
+  "Cafés",
+  "Bebidas",
+  "Salgados",
+  "Doces",
+  "Pães",
+  "Combos",
+  "Outros",
+];
+
+export default function Comanda() {
+  const { id } = useParams();
+  const router = useRouter();
+
+  const [mesa, setMesa] = useState<any>(null);
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [itens, setItens] = useState<ItemCarrinho[]>([]);
+  const [pagamento, setPagamento] = useState("PIX");
+  const [busca, setBusca] = useState("");
+  const [categoriaAtual, setCategoriaAtual] = useState("Todos");
+  const [carregando, setCarregando] = useState(true);
+  const [caixaAberto, setCaixaAberto] = useState<any>(null);
 
   async function carregar() {
-    const { data: vendaData } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("id", id)
-      .single();
+    setCarregando(true);
 
-    const { data: configData } = await supabase
-      .from("company_settings")
-      .select("*")
-      .limit(1)
-      .single();
+    const [mesaResponse, productsResponse, cashResponse] = await Promise.all([
+      supabase.from("tables_open").select("*").eq("id", id).single(),
 
-    setVenda(vendaData);
-    setConfig(configData);
-
-    if (vendaData?.order_id) {
-      const { data: pedidoData } = await supabase
-        .from("orders")
+      supabase
+        .from("products")
         .select("*")
-        .eq("id", vendaData.order_id)
-        .single();
+        .eq("active", true)
+        .order("name", { ascending: true }),
 
-      setPedido(pedidoData);
+      supabase
+        .from("cash_registers")
+        .select("*")
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-      const { data: itensData } = await supabase
-        .from("order_items")
-        .select(`
-          *,
-          products (
-            name
-          )
-        `)
-        .eq("order_id", vendaData.order_id);
-
-      setItens(itensData || []);
+    if (mesaResponse.error) {
+      alert(mesaResponse.error.message);
+      setCarregando(false);
+      return;
     }
+
+    if (productsResponse.error) {
+      alert(productsResponse.error.message);
+      setCarregando(false);
+      return;
+    }
+
+    setMesa(mesaResponse.data);
+    setProdutos(productsResponse.data || []);
+    setCaixaAberto(cashResponse.data || null);
+    setCarregando(false);
   }
 
-  function imprimir() {
-    window.print();
+  const produtosFiltrados = produtos.filter((produto) => {
+    const combinaBusca = produto.name
+      .toLowerCase()
+      .includes(busca.toLowerCase());
+
+    const combinaCategoria =
+      categoriaAtual === "Todos" ||
+      (produto.category || "Outros") === categoriaAtual;
+
+    return combinaBusca && combinaCategoria;
+  });
+
+  function dinheiro(valor: any) {
+    return `R$ ${Number(valor || 0).toFixed(2)}`;
   }
 
-  function tipoVenda() {
-    return pedido?.table_id ? "🪑 Mesa/Comanda" : "⚡ Venda Rápida";
+  function horaBR(data: string | null) {
+    if (!data) return "—";
+
+    return new Date(data).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function adicionar(produto: any) {
+    if (Number(produto.stock) <= 0) {
+      alert("Produto sem estoque");
+      return;
+    }
+
+    setItens((atual) => {
+      const existente = atual.find((item) => item.produto.id === produto.id);
+
+      if (existente) {
+        if (existente.qty >= Number(produto.stock)) {
+          alert("Estoque insuficiente");
+          return atual;
+        }
+
+        return atual.map((item) =>
+          item.produto.id === produto.id
+            ? {
+                ...item,
+                qty: item.qty + 1,
+              }
+            : item
+        );
+      }
+
+      return [
+        ...atual,
+        {
+          produto,
+          qty: 1,
+        },
+      ];
+    });
+  }
+
+  function diminuir(produtoId: string) {
+    setItens((atual) =>
+      atual
+        .map((item) =>
+          item.produto.id === produtoId
+            ? {
+                ...item,
+                qty: item.qty - 1,
+              }
+            : item
+        )
+        .filter((item) => item.qty > 0)
+    );
+  }
+
+  function remover(produtoId: string) {
+    setItens((atual) => atual.filter((item) => item.produto.id !== produtoId));
+  }
+
+  function limparPedido() {
+    const confirmar = confirm("Limpar todos os itens desta comanda?");
+
+    if (!confirmar) return;
+
+    setItens([]);
+  }
+
+  const total = itens.reduce(
+    (soma, item) => soma + Number(item.produto.price) * item.qty,
+    0
+  );
+
+  const quantidadeCarrinho = itens.reduce((soma, item) => soma + item.qty, 0);
+
+  async function verificarCaixaAberto() {
+    const { data } = await supabase
+      .from("cash_registers")
+      .select("*")
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return data;
+  }
+
+  async function finalizarVenda() {
+    if (itens.length === 0) {
+      alert("Adicione pelo menos um item");
+      return;
+    }
+
+    const caixa = await verificarCaixaAberto();
+
+    if (!caixa) {
+      alert("O caixa está fechado. Abra o caixa antes de finalizar vendas.");
+      router.push("/caixa");
+      return;
+    }
+
+    const confirmar = confirm(
+      `Finalizar venda de ${dinheiro(total)} em ${pagamento}?`
+    );
+
+    if (!confirmar) return;
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        table_id: id,
+        status: "closed",
+        subtotal: total,
+        discount: 0,
+        total: total,
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      alert(orderError.message);
+      return;
+    }
+
+    const orderItems = itens.map((item) => ({
+      order_id: order.id,
+      product_id: item.produto.id,
+      qty: item.qty,
+      price: Number(item.produto.price),
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      alert(itemsError.message);
+      return;
+    }
+
+    for (const item of itens) {
+      const novoEstoque = Number(item.produto.stock) - item.qty;
+
+      const { error: stockError } = await supabase
+        .from("products")
+        .update({
+          stock: novoEstoque,
+        })
+        .eq("id", item.produto.id);
+
+      if (stockError) {
+        alert(stockError.message);
+        return;
+      }
+    }
+
+    const { data: sale, error: saleError } = await supabase
+      .from("sales")
+      .insert({
+        payment_method: pagamento,
+        total: total,
+        order_id: order.id,
+        cash_register_id: caixa.id,
+      })
+      .select()
+      .single();
+
+    if (saleError) {
+      alert(saleError.message);
+      return;
+    }
+
+    const { error: tableError } = await supabase
+      .from("tables_open")
+      .update({
+        status: "closed",
+      })
+      .eq("id", id);
+
+    if (tableError) {
+      alert(tableError.message);
+      return;
+    }
+
+    alert("Venda finalizada com sucesso");
+
+    setItens([]);
+
+    router.push(`/cupom/${sale.id}`);
   }
 
   useEffect(() => {
-    carregar();
-  }, []);
+    if (id) carregar();
+  }, [id]);
 
   return (
-    <main className="min-h-screen bg-[#07130d] p-8 text-white lg:p-10">
-      <div className="print:hidden">
-        <Header title="🧾 Cupom" backTo="/" backLabel="🏠 Início" />
-      </div>
+    <main className="pdv-page">
+      <section className="pdv-main">
+        <Header
+          title={mesa?.name || "Comanda"}
+          subtitle="Atendimento por mesa"
+          backTo="/mesas"
+          backLabel="Voltar para mesas"
+        />
 
-      <section className="mx-auto max-w-md rounded-3xl bg-white p-8 text-black print:rounded-none print:p-4">
-        <div className="text-center">
-          <div className="text-5xl">☕</div>
-
-          <h1 className="mt-3 text-2xl font-bold">
-            {config?.company_name || "Kafeteria"}
-          </h1>
-
-          {config?.phone && <p>{config.phone}</p>}
-          {config?.instagram && <p>{config.instagram}</p>}
-          {config?.address && <p className="text-sm">{config.address}</p>}
-
-          <div className="mt-4 inline-block rounded-full bg-black/10 px-4 py-2 text-sm font-bold">
-            {tipoVenda()}
-          </div>
-        </div>
-
-        <div className="my-6 border-t border-dashed border-black/30" />
-
-        <div className="space-y-2 text-sm">
-          <p>
-            <strong>Venda:</strong> {String(venda?.id || "").slice(0, 8)}
-          </p>
-
-          <p>
-            <strong>Pagamento:</strong> {venda?.payment_method}
-          </p>
-
-          <p>
-            <strong>Data:</strong>{" "}
-            {venda?.created_at
-              ? new Date(venda.created_at).toLocaleString("pt-BR")
-              : ""}
-          </p>
-        </div>
-
-        <div className="my-6 border-t border-dashed border-black/30" />
-
-        <div>
-          <h2 className="mb-3 font-bold">Itens do pedido</h2>
-
-          {itens.length === 0 && (
-            <p className="text-sm text-black/60">
-              Itens indisponíveis para vendas antigas.
-            </p>
-          )}
-
-          <div className="space-y-3">
-            {itens.map((item) => {
-              const nomeProduto = item.products?.name || "Produto";
-
-              const subtotal = Number(item.qty) * Number(item.price);
-
-              return (
-                <div key={item.id}>
-                  <div className="flex justify-between gap-4">
-                    <span>
-                      {item.qty}x {nomeProduto}
-                    </span>
-
-                    <span>R$ {subtotal.toFixed(2)}</span>
-                  </div>
-
-                  <p className="text-xs text-black/60">
-                    Unitário: R$ {Number(item.price).toFixed(2)}
-                  </p>
+        <section className="pdv-stats mb-5">
+          <div className="pdv-stat-card">
+            <div className="pdv-stat-top">
+              <div>
+                <div className="pdv-stat-label">Mesa</div>
+                <div
+                  className="pdv-stat-value"
+                  style={{
+                    fontSize: 28,
+                    lineHeight: 1.05,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {mesa?.name || "Carregando"}
                 </div>
-              );
-            })}
+                <div className="pdv-stat-note">
+                  {mesa?.opened_at
+                    ? `aberta às ${horaBR(mesa.opened_at)}`
+                    : "comanda em aberto"}
+                </div>
+              </div>
+
+              <div className="pdv-stat-icon">MS</div>
+            </div>
           </div>
-        </div>
 
-        <div className="my-6 border-t border-dashed border-black/30" />
+          <div className="pdv-stat-card">
+            <div className="pdv-stat-top">
+              <div>
+                <div className="pdv-stat-label">Itens no pedido</div>
+                <div className="pdv-stat-value">{quantidadeCarrinho}</div>
+                <div className="pdv-stat-note">selecionados agora</div>
+              </div>
 
-        <div className="flex justify-between text-2xl font-bold">
-          <span>Total</span>
-          <span>R$ {Number(venda?.total || 0).toFixed(2)}</span>
-        </div>
+              <div className="pdv-stat-icon">IT</div>
+            </div>
+          </div>
 
-        <div className="my-6 border-t border-dashed border-black/30" />
+          <div className="pdv-stat-card">
+            <div className="pdv-stat-top">
+              <div>
+                <div className="pdv-stat-label">Caixa</div>
+                <div className="pdv-stat-value">
+                  {caixaAberto ? "Aberto" : "Fechado"}
+                </div>
+                <div className="pdv-stat-note">
+                  {caixaAberto ? "pronto para vender" : "abra antes de vender"}
+                </div>
+              </div>
 
-        <p className="text-center text-sm">Obrigado pela preferência ☕</p>
-      </section>
+              <div className="pdv-stat-icon">CX</div>
+            </div>
+          </div>
+        </section>
 
-      <div className="mx-auto mt-6 max-w-md print:hidden">
-        <button
-          onClick={imprimir}
-          className="w-full rounded-2xl bg-green-600 py-4 font-bold hover:bg-green-500"
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) 420px",
+            gap: 18,
+            alignItems: "start",
+          }}
         >
-          🖨️ Imprimir / Salvar PDF
-        </button>
-      </div>
+          <section className="pdv-panel">
+            <div className="pdv-panel-header">
+              <div>
+                <h2 className="pdv-panel-title">Produtos</h2>
+                <p className="pdv-panel-subtitle">
+                  Busque ou filtre por categoria para adicionar ao pedido.
+                </p>
+              </div>
+
+              <button
+                onClick={carregar}
+                className="pdv-more-link"
+                style={{
+                  border: "none",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Atualizar
+              </button>
+            </div>
+
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar produto..."
+              className="pdv-search"
+              style={{
+                width: "100%",
+                minWidth: 0,
+                marginBottom: 16,
+              }}
+            />
+
+            <div className="pdv-tabs">
+              {categorias.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaAtual(cat)}
+                  className={`pdv-tab ${categoriaAtual === cat ? "active" : ""}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {carregando && (
+              <div
+                style={{
+                  padding: 40,
+                  textAlign: "center",
+                  color: "#123b24",
+                  fontWeight: 950,
+                }}
+              >
+                Carregando produtos...
+              </div>
+            )}
+
+            {!carregando && produtosFiltrados.length === 0 && (
+              <div
+                style={{
+                  padding: 52,
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: 92,
+                    height: 92,
+                    margin: "0 auto 18px",
+                    borderRadius: 28,
+                    background:
+                      "linear-gradient(135deg, rgba(11,90,52,0.12), rgba(255,255,255,0.7))",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "#123b24",
+                    fontSize: 28,
+                    fontWeight: 950,
+                  }}
+                >
+                  PR
+                </div>
+
+                <h2 className="pdv-panel-title">Nenhum produto encontrado</h2>
+
+                <p className="pdv-panel-subtitle">
+                  Cadastre produtos ou ajuste a busca/categoria.
+                </p>
+              </div>
+            )}
+
+            {!carregando && produtosFiltrados.length > 0 && (
+              <div className="pdv-products">
+                {produtosFiltrados.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => adicionar(item)}
+                    className="pdv-product-card"
+                  >
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="pdv-product-image"
+                      />
+                    ) : (
+                      <div className="pdv-product-empty">
+                        <div
+                          style={{
+                            width: 58,
+                            height: 58,
+                            opacity: 0.85,
+                          }}
+                        >
+                          <LogoKafeteria />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pdv-product-body">
+                      <div className="pdv-product-name">{item.name}</div>
+
+                      <div className="pdv-product-stock">
+                        {item.category || "Outros"} · Estoque: {item.stock}
+                      </div>
+
+                      <div className="pdv-product-bottom">
+                        <span className="pdv-product-price">
+                          {dinheiro(item.price)}
+                        </span>
+
+                        <span className="pdv-plus">+</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <aside
+            className="pdv-cart"
+            style={{
+              position: "sticky",
+              top: 18,
+            }}
+          >
+            <div className="pdv-cart-header">
+              <div className="pdv-cart-title">
+                <span>Pedido</span>
+              </div>
+
+              <span className="pdv-pill">{quantidadeCarrinho} itens</span>
+            </div>
+
+            <div className="pdv-cart-body">
+              <div className="pdv-cart-items">
+                {itens.length === 0 && (
+                  <div className="pdv-cart-empty">
+                    <div
+                      className="pdv-cart-empty-icon"
+                      style={{
+                        width: 72,
+                        height: 72,
+                        margin: "0 auto 10px",
+                        opacity: 0.8,
+                      }}
+                    >
+                      <LogoKafeteria />
+                    </div>
+
+                    <strong>Pedido vazio</strong>
+                    <p>Adicione produtos pela lista ao lado.</p>
+                  </div>
+                )}
+
+                {itens.map((item) => {
+                  const subtotal = Number(item.produto.price) * item.qty;
+
+                  return (
+                    <div key={item.produto.id} className="pdv-cart-item">
+                      <div className="pdv-cart-left">
+                        <div className="pdv-cart-thumb">
+                          {item.produto.image_url ? (
+                            <img
+                              src={item.produto.image_url}
+                              className="pdv-cart-image"
+                              alt={item.produto.name}
+                            />
+                          ) : (
+                            <LogoKafeteria />
+                          )}
+                        </div>
+
+                        <div className="pdv-cart-info">
+                          <div className="pdv-cart-name">
+                            {item.produto.name}
+                          </div>
+
+                          <div className="pdv-cart-muted">
+                            {item.qty}x {dinheiro(item.produto.price)}
+                          </div>
+
+                          <div className="pdv-cart-actions">
+                            <button
+                              onClick={() => diminuir(item.produto.id)}
+                              className="pdv-qty-btn"
+                            >
+                              −
+                            </button>
+
+                            <span className="pdv-qty-number">{item.qty}</span>
+
+                            <button
+                              onClick={() => adicionar(item.produto)}
+                              className="pdv-qty-btn active"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              onClick={() => remover(item.produto.id)}
+                              className="pdv-remove-btn"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pdv-cart-price">{dinheiro(subtotal)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {itens.length > 0 && (
+                <button
+                  onClick={limparPedido}
+                  className="pdv-note"
+                  style={{
+                    width: "100%",
+                    cursor: "pointer",
+                    background: "rgba(246, 255, 240, 0.08)",
+                  }}
+                >
+                  Limpar pedido
+                </button>
+              )}
+
+              <div className="pdv-totals">
+                <div className="pdv-total-row">
+                  <span>Subtotal</span>
+                  <span>{dinheiro(total)}</span>
+                </div>
+
+                <div className="pdv-total-row">
+                  <span>Desconto</span>
+                  <span>R$ 0.00</span>
+                </div>
+
+                <div className="pdv-total-final">
+                  <strong>Total</strong>
+                  <span>{dinheiro(total)}</span>
+                </div>
+              </div>
+
+              <div className="pdv-payment-row">
+                {["PIX", "Cartão", "Dinheiro"].map((tipo) => (
+                  <button
+                    key={tipo}
+                    onClick={() => setPagamento(tipo)}
+                    className={`pdv-payment ${pagamento === tipo ? "active" : ""}`}
+                  >
+                    {tipo}
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={finalizarVenda} className="pdv-finish">
+                Finalizar venda
+              </button>
+
+              <div className="pdv-safe">Mesa sincronizada com o caixa</div>
+            </div>
+          </aside>
+        </div>
+      </section>
     </main>
   );
 }

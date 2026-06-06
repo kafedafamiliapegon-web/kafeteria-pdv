@@ -10,6 +10,22 @@ type ItemCarrinho = {
   qty: number;
 };
 
+function LogoKafeteria({ className = "" }: { className?: string }) {
+  return (
+    <img
+      src="/logo.png"
+      alt="Logo Kafeteria"
+      className={className}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        display: "block",
+      }}
+    />
+  );
+}
+
 export default function Dashboard() {
   const router = useRouter();
 
@@ -23,6 +39,8 @@ export default function Dashboard() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [ultimas, setUltimas] = useState<any[]>([]);
   const [usuario, setUsuario] = useState<any>(null);
+  const [caixaAberto, setCaixaAberto] = useState<any>(null);
+  const [agora, setAgora] = useState<Date | null>(null);
 
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [pagamento, setPagamento] = useState("PIX");
@@ -44,7 +62,7 @@ export default function Dashboard() {
 
     setUsuario(userData.user);
 
-    const [sales, tables, products] = await Promise.all([
+    const [sales, tables, products, cash] = await Promise.all([
       supabase
         .from("sales")
         .select("*")
@@ -58,6 +76,14 @@ export default function Dashboard() {
         .select("*")
         .eq("active", true)
         .order("name", { ascending: true }),
+
+      supabase
+        .from("cash_registers")
+        .select("*")
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     const vendas = sales.data || [];
@@ -74,6 +100,7 @@ export default function Dashboard() {
 
     setUltimas(vendas);
     setProdutos(listaProdutos);
+    setCaixaAberto(cash.data || null);
   }
 
   function dinheiro(valor: any) {
@@ -81,7 +108,9 @@ export default function Dashboard() {
   }
 
   function dataHoje() {
-    return new Date().toLocaleDateString("pt-BR", {
+    if (!agora) return "Carregando data...";
+
+    return agora.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -89,7 +118,17 @@ export default function Dashboard() {
   }
 
   function horaAgora() {
-    return new Date().toLocaleTimeString("pt-BR", {
+    if (!agora) return "Carregando hora...";
+
+    return agora.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }
+
+  function horaBR(data: string) {
+    return new Date(data).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -174,9 +213,9 @@ export default function Dashboard() {
       return;
     }
 
-    const caixaAberto = await verificarCaixaAberto();
+    const caixa = await verificarCaixaAberto();
 
-    if (!caixaAberto) {
+    if (!caixa) {
       alert("O caixa está fechado. Abra o caixa antes de finalizar vendas.");
       router.push("/caixa");
       return;
@@ -243,7 +282,7 @@ export default function Dashboard() {
         payment_method: pagamento,
         total: totalCarrinho,
         order_id: order.id,
-        cash_register_id: caixaAberto.id,
+        cash_register_id: caixa.id,
       })
       .select()
       .single();
@@ -253,7 +292,7 @@ export default function Dashboard() {
       return;
     }
 
-    alert("Venda finalizada com sucesso ☕");
+    alert("Venda finalizada com sucesso");
 
     setItens([]);
 
@@ -261,19 +300,25 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    setAgora(new Date());
     carregar();
+
+    const timer = setInterval(() => {
+      setAgora(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const menu = [
-    ["🏠", "Dashboard", "/"],
-    ["🛒", "Venda", "/venda-rapida"],
-    ["🪑", "Mesas", "/mesas"],
-    ["📦", "Produtos", "/produtos"],
-    ["💰", "Caixa", "/caixa"],
-    ["📊", "Relatórios", "/relatorios"],
-    ["🕒", "Histórico", "/historico"],
-    ["⚙️", "Configurações", "/configuracoes"],
-  ];
+  ["IN", "Início", "/"],
+  ["MS", "Mesas", "/mesas"],
+  ["PR", "Produtos", "/produtos"],
+  ["CX", "Caixa", "/caixa"],
+  ["RL", "Relatórios", "/relatorios"],
+  ["HI", "Histórico", "/historico"],
+  ["CF", "Configurações", "/configuracoes"],
+];
 
   const categorias = [
     "Todos",
@@ -308,14 +353,24 @@ export default function Dashboard() {
     <main className="pdv-page">
       <div className="pdv-shell">
         <aside className="pdv-sidebar">
-          <div className="pdv-brand">
-            <div className="pdv-logo">☕</div>
-
-            <div>
-              <div className="pdv-brand-title">Kafeteria PDV</div>
-              <div className="pdv-brand-subtitle">
-                Sistema de gestão para cafeterias
-              </div>
+          <div
+            className="pdv-brand"
+            style={{
+              justifyContent: "center",
+              paddingTop: "4px",
+              paddingBottom: "10px",
+            }}
+          >
+            <div
+              className="pdv-logo"
+              style={{
+                width: "172px",
+                height: "172px",
+                borderRadius: "38px",
+                padding: "12px",
+              }}
+            >
+              <LogoKafeteria />
             </div>
           </div>
 
@@ -345,7 +400,7 @@ export default function Dashboard() {
             </div>
 
             <button onClick={sair} className="pdv-logout">
-              ↪ Sair do sistema
+              Sair do sistema
             </button>
           </div>
         </aside>
@@ -355,9 +410,7 @@ export default function Dashboard() {
             <div className="pdv-content">
               <header className="pdv-hero">
                 <div>
-                  <div className="pdv-hero-small">
-                    Bom dia, {nomeUsuario}! ☕
-                  </div>
+                  <div className="pdv-hero-small">Bom dia, {nomeUsuario}!</div>
 
                   <h1 className="pdv-hero-title">
                     Bem-vindo à Kafeteria PDV
@@ -370,13 +423,30 @@ export default function Dashboard() {
 
                 <div className="pdv-hero-info">
                   <div className="pdv-info-card">
-                    <div className="pdv-info-label">📅 {dataHoje()}</div>
-                    <div className="pdv-info-muted">Hoje · {horaAgora()}</div>
+                    <div className="pdv-info-label">{dataHoje()}</div>
+                    <div className="pdv-info-muted">Agora · {horaAgora()}</div>
                   </div>
 
                   <div className="pdv-info-card">
-                    <div className="pdv-info-label">🟢 Caixa aberto</div>
-                    <div className="pdv-info-muted">Pronto para vender</div>
+                    <div className="pdv-info-label">
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: 999,
+                          background: caixaAberto ? "#65f58e" : "#ef4444",
+                          marginRight: 8,
+                        }}
+                      />
+                      {caixaAberto ? "Caixa aberto" : "Caixa fechado"}
+                    </div>
+
+                    <div className="pdv-info-muted">
+                      {caixaAberto?.opened_at
+                        ? `Desde ${horaBR(caixaAberto.opened_at)}`
+                        : "Abra o caixa para vender"}
+                    </div>
                   </div>
                 </div>
               </header>
@@ -389,10 +459,10 @@ export default function Dashboard() {
                       <div className="pdv-stat-value">
                         {dinheiro(dados.vendas)}
                       </div>
-                      <div className="pdv-stat-note">↑ movimento do dia</div>
+                      <div className="pdv-stat-note">movimento do dia</div>
                     </div>
 
-                    <div className="pdv-stat-icon">💵</div>
+                    <div className="pdv-stat-icon">R$</div>
                   </div>
                 </div>
 
@@ -401,10 +471,10 @@ export default function Dashboard() {
                     <div>
                       <div className="pdv-stat-label">Transações</div>
                       <div className="pdv-stat-value">{ultimas.length}</div>
-                      <div className="pdv-stat-note">↑ vendas recentes</div>
+                      <div className="pdv-stat-note">vendas recentes</div>
                     </div>
 
-                    <div className="pdv-stat-icon">🛍️</div>
+                    <div className="pdv-stat-icon">V</div>
                   </div>
                 </div>
 
@@ -418,7 +488,7 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="pdv-stat-icon">📦</div>
+                    <div className="pdv-stat-icon">P</div>
                   </div>
                 </div>
               </section>
@@ -457,7 +527,17 @@ export default function Dashboard() {
                 <div className="pdv-products">
                   {produtosFiltrados.length === 0 && (
                     <Link href="/produtos" className="pdv-product-card">
-                      <div className="pdv-product-empty">☕</div>
+                      <div className="pdv-product-empty">
+                        <div
+                          style={{
+                            width: 58,
+                            height: 58,
+                            opacity: 0.85,
+                          }}
+                        >
+                          <LogoKafeteria />
+                        </div>
+                      </div>
 
                       <div className="pdv-product-body">
                         <div className="pdv-product-name">
@@ -482,9 +562,20 @@ export default function Dashboard() {
                         <img
                           src={produto.image_url}
                           className="pdv-product-image"
+                          alt={produto.name}
                         />
                       ) : (
-                        <div className="pdv-product-empty">☕</div>
+                        <div className="pdv-product-empty">
+                          <div
+                            style={{
+                              width: 58,
+                              height: 58,
+                              opacity: 0.85,
+                            }}
+                          >
+                            <LogoKafeteria />
+                          </div>
+                        </div>
                       )}
 
                       <div className="pdv-product-body">
@@ -518,7 +609,6 @@ export default function Dashboard() {
               <section className="pdv-cart">
                 <div className="pdv-cart-header">
                   <div className="pdv-cart-title">
-                    <span>🛒</span>
                     <span>Carrinho</span>
                   </div>
 
@@ -529,7 +619,18 @@ export default function Dashboard() {
                   <div className="pdv-cart-items">
                     {itens.length === 0 && (
                       <div className="pdv-cart-empty">
-                        <div className="pdv-cart-empty-icon">🛒</div>
+                        <div
+                          className="pdv-cart-empty-icon"
+                          style={{
+                            width: 72,
+                            height: 72,
+                            margin: "0 auto 10px",
+                            opacity: 0.8,
+                          }}
+                        >
+                          <LogoKafeteria />
+                        </div>
+
                         <strong>Carrinho vazio</strong>
                         <p>Adicione produtos pela venda rápida.</p>
                       </div>
@@ -546,9 +647,10 @@ export default function Dashboard() {
                                 <img
                                   src={item.produto.image_url}
                                   className="pdv-cart-image"
+                                  alt={item.produto.name}
                                 />
                               ) : (
-                                "☕"
+                                <LogoKafeteria />
                               )}
                             </div>
 
@@ -598,7 +700,7 @@ export default function Dashboard() {
                     })}
                   </div>
 
-                  <div className="pdv-note">✎ Adicionar observação</div>
+                  <div className="pdv-note">Adicionar observação</div>
 
                   <div className="pdv-totals">
                     <div className="pdv-total-row">
@@ -618,7 +720,7 @@ export default function Dashboard() {
                   </div>
 
                   <button onClick={finalizarVenda} className="pdv-finish">
-                    💳 Finalizar venda
+                    Finalizar venda
                   </button>
 
                   <div className="pdv-payment-row">
@@ -636,7 +738,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="pdv-safe">
-                    🛡️ Ambiente seguro e criptografado
+                    Ambiente seguro e criptografado
                   </div>
                 </div>
               </section>
