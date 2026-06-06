@@ -46,6 +46,9 @@ export default function Dashboard() {
   const [pagamento, setPagamento] = useState("PIX");
   const [busca, setBusca] = useState("");
   const [categoriaAtual, setCategoriaAtual] = useState("Todos");
+  const [modalProdutosAberto, setModalProdutosAberto] = useState(false);
+  const [buscaModalProdutos, setBuscaModalProdutos] = useState("");
+  const [categoriaModalProdutos, setCategoriaModalProdutos] = useState("Todos");
 
   async function sair() {
     const confirmar = confirm("Deseja sair do sistema?");
@@ -342,6 +345,16 @@ export default function Dashboard() {
     })
     .slice(0, 10);
 
+  const produtosModalFiltrados = produtos
+    .filter((produto) =>
+      produto.name.toLowerCase().includes(buscaModalProdutos.toLowerCase())
+    )
+    .filter((produto) => {
+      if (categoriaModalProdutos === "Todos") return true;
+
+      return (produto.category || "Outros") === categoriaModalProdutos;
+    });
+
   const nomeUsuario =
     usuario?.user_metadata?.name ||
     usuario?.email?.split("@")[0] ||
@@ -526,7 +539,10 @@ export default function Dashboard() {
 
                 <div className="pdv-products">
                   {produtosFiltrados.length === 0 && (
-                    <Link href="/produtos" className="pdv-product-card">
+                    <button
+                      onClick={() => setModalProdutosAberto(true)}
+                      className="pdv-product-card"
+                    >
                       <div className="pdv-product-empty">
                         <div
                           style={{
@@ -549,7 +565,7 @@ export default function Dashboard() {
                           <span className="pdv-plus">+</span>
                         </div>
                       </div>
-                    </Link>
+                    </button>
                   )}
 
                   {produtosFiltrados.map((produto) => (
@@ -598,9 +614,16 @@ export default function Dashboard() {
                 </div>
 
                 <div className="pdv-more">
-                  <Link href="/produtos" className="pdv-more-link">
-                    Ver mais produtos⌄
-                  </Link>
+                  <button
+                    onClick={() => setModalProdutosAberto(true)}
+                    className="pdv-more-link"
+                    style={{
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Ver mais produtos
+                  </button>
                 </div>
               </section>
             </div>
@@ -746,6 +769,159 @@ export default function Dashboard() {
           </div>
         </section>
       </div>
+
+      {modalProdutosAberto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-produtos-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"
+          onClick={() => setModalProdutosAberto(false)}
+        >
+          <section
+            className="max-h-[88vh] w-full max-w-6xl overflow-hidden rounded-[28px] border border-[#dcebd8]/18 bg-[linear-gradient(135deg,#062518,#0b5a34_55%,#123b24)] text-[#fffdf2] shadow-2xl shadow-black/35"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#dcebd8]/62">
+                  Venda rápida
+                </p>
+
+                <h2
+                  id="modal-produtos-title"
+                  className="mt-2 text-3xl font-black leading-tight"
+                >
+                  Todos os produtos
+                </h2>
+              </div>
+
+              <button
+                onClick={() => setModalProdutosAberto(false)}
+                className="rounded-2xl border border-white/12 bg-white/10 px-5 py-3 text-sm font-black text-[#fffdf2] transition hover:bg-white/16"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="grid gap-4 border-b border-white/10 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <input
+                value={buscaModalProdutos}
+                onChange={(event) => setBuscaModalProdutos(event.target.value)}
+                placeholder="Buscar produto..."
+                className="w-full rounded-2xl border border-white/12 bg-black/18 px-5 py-4 text-sm font-bold text-[#fffdf2] outline-none transition placeholder:text-[#dcebd8]/45 focus:border-[#65f58e]/45 focus:ring-4 focus:ring-[#65f58e]/10"
+              />
+
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+                {categorias.map((categoria) => (
+                  <button
+                    key={categoria}
+                    onClick={() => setCategoriaModalProdutos(categoria)}
+                    className={`shrink-0 rounded-full px-4 py-3 text-sm font-black transition ${
+                      categoriaModalProdutos === categoria
+                        ? "bg-[#0bff70] text-[#062518]"
+                        : "bg-white/10 text-[#fffdf2] hover:bg-white/16"
+                    }`}
+                  >
+                    {categoria}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="max-h-[58vh] overflow-y-auto p-5 sm:p-6">
+              {produtosModalFiltrados.length === 0 && (
+                <div className="rounded-[24px] border border-white/10 bg-white/10 p-10 text-center">
+                  <div
+                    className="mx-auto mb-4 h-20 w-20 opacity-80"
+                    aria-hidden="true"
+                  >
+                    <LogoKafeteria />
+                  </div>
+
+                  <h3 className="text-xl font-black">
+                    Nenhum produto encontrado
+                  </h3>
+
+                  <p className="mt-2 text-sm font-bold text-[#dcebd8]/62">
+                    Ajuste a busca ou escolha outra categoria.
+                  </p>
+                </div>
+              )}
+
+              {produtosModalFiltrados.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {produtosModalFiltrados.map((produto) => (
+                    <article
+                      key={produto.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => adicionar(produto)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          adicionar(produto);
+                        }
+                      }}
+                      className="group overflow-hidden rounded-[22px] border border-white/10 bg-[#fffdf2] text-left text-[#123b24] shadow-xl shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/20"
+                    >
+                      {produto.image_url ? (
+                        <img
+                          src={produto.image_url}
+                          className="pdv-product-image"
+                          alt={produto.name}
+                        />
+                      ) : (
+                        <div className="pdv-product-empty">
+                          <div
+                            style={{
+                              width: 58,
+                              height: 58,
+                              opacity: 0.85,
+                            }}
+                          >
+                            <LogoKafeteria />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-lg font-black leading-tight">
+                              {produto.name}
+                            </h3>
+
+                            <p className="mt-2 text-sm font-black text-[#123b24]/55">
+                              Estoque: {produto.stock}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-label={`Adicionar ${produto.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              adicionar(produto);
+                            }}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#0b7d42] text-2xl font-black text-[#fffdf2] transition group-hover:bg-[#0b5a34]"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="mt-4 text-xl font-black text-[#0b7d42]">
+                          {dinheiro(produto.price)}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
