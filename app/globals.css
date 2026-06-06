@@ -1019,6 +1019,21 @@ body {
   animation: pdv-soft-enter 0.32s ease both;
 }
 
+.pdv-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: flex-end;
+}
+
+.pdv-ranking-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
 @media (max-width: 1500px) {
   .pdv-grid {
     grid-template-columns: 1fr;
@@ -1051,6 +1066,93 @@ body {
   }
 }
 
+@media (max-width: 900px) {
+  .pdv-main {
+    padding: 14px;
+  }
+
+  .pdv-page {
+    letter-spacing: -0.01em;
+  }
+
+  .pdv-hero,
+  .pdv-panel,
+  .pdv-cart,
+  .pdv-stat-card,
+  .pdv-product-card {
+    border-radius: 20px;
+  }
+
+  .pdv-panel {
+    padding: 16px;
+  }
+
+  .pdv-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pdv-filter-row {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .pdv-filter-row .pdv-tab {
+    flex: 1 1 120px;
+  }
+
+  .pdv-search {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+
+  .pdv-finish,
+  .pdv-more-link,
+  .pdv-tab,
+  .pdv-payment,
+  .pdv-remove-btn,
+  .pdv-qty-btn {
+    min-height: 44px;
+  }
+
+  .pdv-cart {
+    position: static !important;
+  }
+
+  .pdv-cart-item {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-cart-left {
+    width: 100%;
+  }
+
+  .pdv-products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdv-product-image,
+  .pdv-product-empty {
+    height: 130px;
+  }
+
+  .pdv-ranking-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pdv-ranking-row > div:last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .pdv-main [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 760px) {
   .pdv-main {
     padding: 12px;
@@ -1073,5 +1175,63 @@ body {
 
   .pdv-search {
     min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .pdv-main {
+    padding: 10px;
+  }
+
+  .pdv-hero {
+    padding: 18px;
+  }
+
+  .pdv-hero-title {
+    font-size: 25px;
+  }
+
+  .pdv-hero-info,
+  .pdv-payment-row,
+  .pdv-products {
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-stat-card {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .pdv-stat-top {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pdv-stat-value {
+    font-size: 25px;
+    overflow-wrap: anywhere;
+  }
+
+  .pdv-panel-title,
+  .pdv-cart-title {
+    font-size: 22px;
+  }
+
+  .pdv-product-image,
+  .pdv-product-empty {
+    height: 150px;
+  }
+
+  .pdv-cart-thumb {
+    width: 64px;
+    height: 58px;
+  }
+
+  .pdv-cart-actions {
+    gap: 8px;
+  }
+
+  .pdv-total-final span {
+    font-size: 26px;
   }
 }
