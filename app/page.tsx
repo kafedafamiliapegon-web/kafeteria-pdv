@@ -411,12 +411,14 @@ export default function Dashboard() {
                 <div className="pdv-stat-card">
                   <div className="pdv-stat-top">
                     <div>
-                      <div className="pdv-stat-label">Produtos vendidos</div>
+                      <div className="pdv-stat-label">Produtos ativos</div>
                       <div className="pdv-stat-value">{dados.produtos}</div>
-                      <div className="pdv-stat-note">produtos ativos</div>
+                      <div className="pdv-stat-note">
+                        cadastrados no sistema
+                      </div>
                     </div>
 
-                    <div className="pdv-stat-icon">☕</div>
+                    <div className="pdv-stat-icon">📦</div>
                   </div>
                 </div>
               </section>
