@@ -1,8 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import Header from "../../components/Header";
 import { supabase } from "../../lib/supabase";
+
+const TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024;
+const TIPOS_IMAGEM_PERMITIDOS = ["image/png", "image/jpeg", "image/webp"];
+
+function gerarNomeSeguroArquivo(file: File) {
+  const extensao = file.name.split(".").pop()?.toLowerCase() || "png";
+
+  const nomeBase = file.name
+    .replace(/\.[^/.]+$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return `produto-${Date.now()}-${nomeBase || "imagem"}.${extensao}`;
+}
+
+function validarImagem(file: File) {
+  if (!TIPOS_IMAGEM_PERMITIDOS.includes(file.type)) {
+    return "Imagem invalida. Envie apenas arquivos PNG, JPG/JPEG ou WebP.";
+  }
+
+  if (file.size > TAMANHO_MAXIMO_IMAGEM) {
+    return "Imagem muito grande. Envie uma imagem de ate 5MB.";
+  }
+
+  return "";
+}
 
 const categorias = ["Cafés", "Bebidas", "Salgados", "Doces", "Outros"];
 
@@ -73,6 +102,26 @@ export default function Produtos() {
     });
   }
 
+  function selecionarImagem(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] || null;
+
+    if (!file) {
+      setArquivo(null);
+      return;
+    }
+
+    const erroImagem = validarImagem(file);
+
+    if (erroImagem) {
+      alert(erroImagem);
+      setArquivo(null);
+      event.currentTarget.value = "";
+      return;
+    }
+
+    setArquivo(file);
+  }
+
   async function salvar() {
     if (!nome.trim()) {
       alert("Digite o nome do produto");
@@ -92,14 +141,24 @@ export default function Produtos() {
     let imageUrl = null;
 
     if (arquivo) {
-      const nomeArquivo = Date.now() + "-" + arquivo.name;
+      const erroImagem = validarImagem(arquivo);
+
+      if (erroImagem) {
+        alert(erroImagem);
+        return;
+      }
+
+      const nomeArquivo = gerarNomeSeguroArquivo(arquivo);
 
       const { error: uploadError } = await supabase.storage
         .from("products")
         .upload(nomeArquivo, arquivo);
 
       if (uploadError) {
-        alert("Erro ao enviar imagem: " + uploadError.message);
+        alert(
+          "Erro ao enviar imagem para o Supabase Storage: " +
+            uploadError.message
+        );
         return;
       }
 
@@ -131,7 +190,7 @@ export default function Produtos() {
         .eq("id", editandoId);
 
       if (error) {
-        alert(error.message);
+        alert("Erro ao salvar produto no banco: " + error.message);
         return;
       }
 
@@ -143,7 +202,7 @@ export default function Produtos() {
       });
 
       if (error) {
-        alert(error.message);
+        alert("Erro ao salvar produto no banco: " + error.message);
         return;
       }
 
@@ -281,9 +340,9 @@ export default function Produtos() {
               >
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   style={{ display: "none" }}
-                  onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+                  onChange={selecionarImagem}
                 />
 
                 <div
