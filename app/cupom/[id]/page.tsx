@@ -1,13 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Header from "../../../components/Header";
 import { supabase } from "../../../lib/supabase";
 
-type ItemCarrinho = {
-  produto: any;
-  qty: number;
+type ProdutoCupom = {
+  name?: string | null;
+};
+
+type ItemCupom = {
+  id: string;
+  qty: number | string | null;
+  price: number | string | null;
+  products?: ProdutoCupom | ProdutoCupom[] | null;
+};
+
+type PedidoCupom = {
+  id: string;
+  table_id?: string | null;
+  order_items?: ItemCupom[] | null;
+};
+
+type VendaCupom = {
+  id: string;
+  order_id?: string | null;
+  payment_method?: string | null;
+  total?: number | string | null;
+  created_at?: string | null;
+  orders?: PedidoCupom | PedidoCupom[] | null;
+};
+
+type ConfigCupom = {
+  company_name?: string | null;
+  phone?: string | null;
+  instagram?: string | null;
+  address?: string | null;
 };
 
 function LogoKafeteria() {
@@ -25,644 +53,269 @@ function LogoKafeteria() {
   );
 }
 
-const categorias = [
-  "Todos",
-  "Cafés",
-  "Bebidas",
-  "Salgados",
-  "Doces",
-  "Pães",
-  "Combos",
-  "Outros",
-];
+export default function Cupom() {
+  const params = useParams();
+  const saleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-export default function Comanda() {
-  const { id } = useParams();
-  const router = useRouter();
-
-  const [mesa, setMesa] = useState<any>(null);
-  const [produtos, setProdutos] = useState<any[]>([]);
-  const [itens, setItens] = useState<ItemCarrinho[]>([]);
-  const [pagamento, setPagamento] = useState("PIX");
-  const [busca, setBusca] = useState("");
-  const [categoriaAtual, setCategoriaAtual] = useState("Todos");
+  const [venda, setVenda] = useState<VendaCupom | null>(null);
+  const [config, setConfig] = useState<ConfigCupom | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [caixaAberto, setCaixaAberto] = useState<any>(null);
+  const [erro, setErro] = useState("");
 
   async function carregar() {
+    if (!saleId) {
+      setErro("Cupom nao encontrado.");
+      setCarregando(false);
+      return;
+    }
+
     setCarregando(true);
+    setErro("");
 
-    const [mesaResponse, productsResponse, cashResponse] = await Promise.all([
-      supabase.from("tables_open").select("*").eq("id", id).single(),
-
+    const [vendaResponse, configResponse] = await Promise.all([
       supabase
-        .from("products")
-        .select("*")
-        .eq("active", true)
-        .order("name", { ascending: true }),
-
-      supabase
-        .from("cash_registers")
-        .select("*")
-        .eq("status", "open")
-        .order("opened_at", { ascending: false })
-        .limit(1)
+        .from("sales")
+        .select(
+          `
+          id,
+          order_id,
+          payment_method,
+          total,
+          created_at,
+          orders (
+            id,
+            table_id,
+            order_items (
+              id,
+              qty,
+              price,
+              products (
+                name
+              )
+            )
+          )
+        `
+        )
+        .eq("id", saleId)
         .maybeSingle(),
+
+      supabase.from("company_settings").select("*").limit(1).maybeSingle(),
     ]);
 
-    if (mesaResponse.error) {
-      alert(mesaResponse.error.message);
+    if (vendaResponse.error) {
+      setErro(vendaResponse.error.message);
+      setVenda(null);
       setCarregando(false);
       return;
     }
 
-    if (productsResponse.error) {
-      alert(productsResponse.error.message);
+    if (!vendaResponse.data) {
+      setErro("Venda nao encontrada.");
+      setVenda(null);
       setCarregando(false);
       return;
     }
 
-    setMesa(mesaResponse.data);
-    setProdutos(productsResponse.data || []);
-    setCaixaAberto(cashResponse.data || null);
+    setVenda(vendaResponse.data as VendaCupom);
+    setConfig((configResponse.data as ConfigCupom | null) || null);
     setCarregando(false);
   }
 
-  const produtosFiltrados = produtos.filter((produto) => {
-    const combinaBusca = produto.name
-      .toLowerCase()
-      .includes(busca.toLowerCase());
+  function imprimir() {
+    window.print();
+  }
 
-    const combinaCategoria =
-      categoriaAtual === "Todos" ||
-      (produto.category || "Outros") === categoriaAtual;
-
-    return combinaBusca && combinaCategoria;
-  });
-
-  function dinheiro(valor: any) {
+  function dinheiro(valor: number | string | null | undefined) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
   }
 
-  function horaBR(data: string | null) {
-    if (!data) return "—";
+  function dataBR(data: string | null | undefined) {
+    if (!data) return "-";
 
-    return new Date(data).toLocaleTimeString("pt-BR", {
+    return new Date(data).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
   }
 
-  function adicionar(produto: any) {
-    if (Number(produto.stock) <= 0) {
-      alert("Produto sem estoque");
-      return;
-    }
+  function pedidoDaVenda() {
+    if (!venda?.orders) return null;
 
-    setItens((atual) => {
-      const existente = atual.find((item) => item.produto.id === produto.id);
-
-      if (existente) {
-        if (existente.qty >= Number(produto.stock)) {
-          alert("Estoque insuficiente");
-          return atual;
-        }
-
-        return atual.map((item) =>
-          item.produto.id === produto.id
-            ? {
-                ...item,
-                qty: item.qty + 1,
-              }
-            : item
-        );
-      }
-
-      return [
-        ...atual,
-        {
-          produto,
-          qty: 1,
-        },
-      ];
-    });
+    return Array.isArray(venda.orders) ? venda.orders[0] : venda.orders;
   }
 
-  function diminuir(produtoId: string) {
-    setItens((atual) =>
-      atual
-        .map((item) =>
-          item.produto.id === produtoId
-            ? {
-                ...item,
-                qty: item.qty - 1,
-              }
-            : item
-        )
-        .filter((item) => item.qty > 0)
-    );
+  function itensDaVenda() {
+    return pedidoDaVenda()?.order_items || [];
   }
 
-  function remover(produtoId: string) {
-    setItens((atual) => atual.filter((item) => item.produto.id !== produtoId));
+  function nomeProduto(item: ItemCupom) {
+    const produto = Array.isArray(item.products)
+      ? item.products[0]
+      : item.products;
+
+    return produto?.name || "Produto";
   }
 
-  function limparPedido() {
-    const confirmar = confirm("Limpar todos os itens desta comanda?");
-
-    if (!confirmar) return;
-
-    setItens([]);
-  }
-
-  const total = itens.reduce(
-    (soma, item) => soma + Number(item.produto.price) * item.qty,
-    0
-  );
-
-  const quantidadeCarrinho = itens.reduce((soma, item) => soma + item.qty, 0);
-
-  async function verificarCaixaAberto() {
-    const { data } = await supabase
-      .from("cash_registers")
-      .select("*")
-      .eq("status", "open")
-      .order("opened_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    return data;
-  }
-
-  async function finalizarVenda() {
-    if (itens.length === 0) {
-      alert("Adicione pelo menos um item");
-      return;
-    }
-
-    const caixa = await verificarCaixaAberto();
-
-    if (!caixa) {
-      alert("O caixa está fechado. Abra o caixa antes de finalizar vendas.");
-      router.push("/caixa");
-      return;
-    }
-
-    const confirmar = confirm(
-      `Finalizar venda de ${dinheiro(total)} em ${pagamento}?`
-    );
-
-    if (!confirmar) return;
-
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        table_id: id,
-        status: "closed",
-        subtotal: total,
-        discount: 0,
-        total: total,
-      })
-      .select()
-      .single();
-
-    if (orderError) {
-      alert(orderError.message);
-      return;
-    }
-
-    const orderItems = itens.map((item) => ({
-      order_id: order.id,
-      product_id: item.produto.id,
-      qty: item.qty,
-      price: Number(item.produto.price),
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsError) {
-      alert(itemsError.message);
-      return;
-    }
-
-    for (const item of itens) {
-      const novoEstoque = Number(item.produto.stock) - item.qty;
-
-      const { error: stockError } = await supabase
-        .from("products")
-        .update({
-          stock: novoEstoque,
-        })
-        .eq("id", item.produto.id);
-
-      if (stockError) {
-        alert(stockError.message);
-        return;
-      }
-    }
-
-    const { data: sale, error: saleError } = await supabase
-      .from("sales")
-      .insert({
-        payment_method: pagamento,
-        total: total,
-        order_id: order.id,
-        cash_register_id: caixa.id,
-      })
-      .select()
-      .single();
-
-    if (saleError) {
-      alert(saleError.message);
-      return;
-    }
-
-    const { error: tableError } = await supabase
-      .from("tables_open")
-      .update({
-        status: "closed",
-      })
-      .eq("id", id);
-
-    if (tableError) {
-      alert(tableError.message);
-      return;
-    }
-
-    alert("Venda finalizada com sucesso");
-
-    setItens([]);
-
-    router.push(`/cupom/${sale.id}`);
+  function tipoVenda() {
+    return pedidoDaVenda()?.table_id ? "Mesa/Comanda" : "Venda rapida";
   }
 
   useEffect(() => {
-    if (id) carregar();
-  }, [id]);
+    carregar();
+  }, [saleId]);
+
+  const itens = itensDaVenda();
 
   return (
     <main className="pdv-page">
       <section className="pdv-main">
-        <Header
-          title={mesa?.name || "Comanda"}
-          subtitle="Atendimento por mesa"
-          backTo="/mesas"
-          backLabel="Voltar para mesas"
-        />
+        <div className="print:hidden">
+          <Header
+            title="Cupom"
+            subtitle="Comprovante da venda"
+            backTo="/historico"
+            backLabel="Voltar ao historico"
+          />
+        </div>
 
-        <section className="pdv-stats mb-5">
-          <div className="pdv-stat-card">
-            <div className="pdv-stat-top">
-              <div>
-                <div className="pdv-stat-label">Mesa</div>
-                <div
-                  className="pdv-stat-value"
-                  style={{
-                    fontSize: 28,
-                    lineHeight: 1.05,
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {mesa?.name || "Carregando"}
-                </div>
-                <div className="pdv-stat-note">
-                  {mesa?.opened_at
-                    ? `aberta às ${horaBR(mesa.opened_at)}`
-                    : "comanda em aberto"}
-                </div>
-              </div>
-
-              <div className="pdv-stat-icon">MS</div>
-            </div>
-          </div>
-
-          <div className="pdv-stat-card">
-            <div className="pdv-stat-top">
-              <div>
-                <div className="pdv-stat-label">Itens no pedido</div>
-                <div className="pdv-stat-value">{quantidadeCarrinho}</div>
-                <div className="pdv-stat-note">selecionados agora</div>
-              </div>
-
-              <div className="pdv-stat-icon">IT</div>
-            </div>
-          </div>
-
-          <div className="pdv-stat-card">
-            <div className="pdv-stat-top">
-              <div>
-                <div className="pdv-stat-label">Caixa</div>
-                <div className="pdv-stat-value">
-                  {caixaAberto ? "Aberto" : "Fechado"}
-                </div>
-                <div className="pdv-stat-note">
-                  {caixaAberto ? "pronto para vender" : "abra antes de vender"}
-                </div>
-              </div>
-
-              <div className="pdv-stat-icon">CX</div>
-            </div>
-          </div>
-        </section>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) 420px",
-            gap: 18,
-            alignItems: "start",
-          }}
-        >
-          <section className="pdv-panel">
-            <div className="pdv-panel-header">
-              <div>
-                <h2 className="pdv-panel-title">Produtos</h2>
-                <p className="pdv-panel-subtitle">
-                  Busque ou filtre por categoria para adicionar ao pedido.
-                </p>
-              </div>
-
-              <button
-                onClick={carregar}
-                className="pdv-more-link"
-                style={{
-                  border: "none",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Atualizar
-              </button>
-            </div>
-
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar produto..."
-              className="pdv-search"
-              style={{
-                width: "100%",
-                minWidth: 0,
-                marginBottom: 16,
-              }}
-            />
-
-            <div className="pdv-tabs">
-              {categorias.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoriaAtual(cat)}
-                  className={`pdv-tab ${categoriaAtual === cat ? "active" : ""}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {carregando && (
-              <div
-                style={{
-                  padding: 40,
-                  textAlign: "center",
-                  color: "#123b24",
-                  fontWeight: 950,
-                }}
-              >
-                Carregando produtos...
-              </div>
-            )}
-
-            {!carregando && produtosFiltrados.length === 0 && (
-              <div
-                style={{
-                  padding: 52,
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: 92,
-                    height: 92,
-                    margin: "0 auto 18px",
-                    borderRadius: 28,
-                    background:
-                      "linear-gradient(135deg, rgba(11,90,52,0.12), rgba(255,255,255,0.7))",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "#123b24",
-                    fontSize: 28,
-                    fontWeight: 950,
-                  }}
-                >
-                  PR
-                </div>
-
-                <h2 className="pdv-panel-title">Nenhum produto encontrado</h2>
-
-                <p className="pdv-panel-subtitle">
-                  Cadastre produtos ou ajuste a busca/categoria.
-                </p>
-              </div>
-            )}
-
-            {!carregando && produtosFiltrados.length > 0 && (
-              <div className="pdv-products">
-                {produtosFiltrados.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => adicionar(item)}
-                    className="pdv-product-card"
-                  >
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="pdv-product-image"
-                      />
-                    ) : (
-                      <div className="pdv-product-empty">
-                        <div
-                          style={{
-                            width: 58,
-                            height: 58,
-                            opacity: 0.85,
-                          }}
-                        >
-                          <LogoKafeteria />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pdv-product-body">
-                      <div className="pdv-product-name">{item.name}</div>
-
-                      <div className="pdv-product-stock">
-                        {item.category || "Outros"} · Estoque: {item.stock}
-                      </div>
-
-                      <div className="pdv-product-bottom">
-                        <span className="pdv-product-price">
-                          {dinheiro(item.price)}
-                        </span>
-
-                        <span className="pdv-plus">+</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <aside
-            className="pdv-cart"
+        <div className="print-area">
+          <section
+            className="receipt-paper mx-auto max-w-md rounded-[28px] bg-[#fffdf2] p-7 text-[#123b24] shadow-2xl shadow-black/20"
             style={{
-              position: "sticky",
-              top: 18,
+              border: "1px solid rgba(18, 59, 36, 0.12)",
             }}
           >
-            <div className="pdv-cart-header">
-              <div className="pdv-cart-title">
-                <span>Pedido</span>
-              </div>
-
-              <span className="pdv-pill">{quantidadeCarrinho} itens</span>
+          <div className="text-center">
+            <div className="receipt-logo mx-auto h-24 w-24 rounded-[28px] border border-[#0b5a34]/12 bg-white/80 p-3">
+              <LogoKafeteria />
             </div>
 
-            <div className="pdv-cart-body">
-              <div className="pdv-cart-items">
-                {itens.length === 0 && (
-                  <div className="pdv-cart-empty">
-                    <div
-                      className="pdv-cart-empty-icon"
-                      style={{
-                        width: 72,
-                        height: 72,
-                        margin: "0 auto 10px",
-                        opacity: 0.8,
-                      }}
-                    >
-                      <LogoKafeteria />
-                    </div>
+            <h1 className="mt-4 text-2xl font-black">
+              {config?.company_name || "Kafeteria"}
+            </h1>
 
-                    <strong>Pedido vazio</strong>
-                    <p>Adicione produtos pela lista ao lado.</p>
-                  </div>
+            {config?.phone && (
+              <p className="mt-1 text-sm font-bold text-[#123b24]/70">
+                {config.phone}
+              </p>
+            )}
+
+            {config?.instagram && (
+              <p className="text-sm font-bold text-[#123b24]/70">
+                {config.instagram}
+              </p>
+            )}
+
+            {config?.address && (
+              <p className="text-sm font-bold text-[#123b24]/70">
+                {config.address}
+              </p>
+            )}
+          </div>
+
+          <div className="my-6 border-t border-dashed border-[#123b24]/25" />
+
+          {carregando && (
+            <div className="py-10 text-center text-sm font-black text-[#123b24]/70">
+              Carregando cupom...
+            </div>
+          )}
+
+          {!carregando && erro && (
+            <div className="rounded-2xl bg-[#f8f6ea] p-5 text-center text-sm font-black text-[#123b24]/70">
+              {erro}
+            </div>
+          )}
+
+          {!carregando && !erro && venda && (
+            <>
+              <div className="space-y-2 text-sm font-bold">
+                <p>
+                  <strong>Venda:</strong> {venda.id.slice(0, 8)}
+                </p>
+
+                <p>
+                  <strong>Tipo:</strong> {tipoVenda()}
+                </p>
+
+                <p>
+                  <strong>Pagamento:</strong>{" "}
+                  {venda.payment_method || "Nao informado"}
+                </p>
+
+                <p>
+                  <strong>Data:</strong> {dataBR(venda.created_at)}
+                </p>
+              </div>
+
+              <div className="my-6 border-t border-dashed border-[#123b24]/25" />
+
+              <div>
+                <h2 className="mb-3 text-base font-black">Itens do pedido</h2>
+
+                {itens.length === 0 && (
+                  <p className="rounded-2xl bg-[#f8f6ea] p-4 text-sm font-bold text-[#123b24]/62">
+                    Itens indisponiveis para esta venda.
+                  </p>
                 )}
 
-                {itens.map((item) => {
-                  const subtotal = Number(item.produto.price) * item.qty;
+                <div className="space-y-3">
+                  {itens.map((item) => {
+                    const quantidade = Number(item.qty || 0);
+                    const preco = Number(item.price || 0);
+                    const subtotal = quantidade * preco;
 
-                  return (
-                    <div key={item.produto.id} className="pdv-cart-item">
-                      <div className="pdv-cart-left">
-                        <div className="pdv-cart-thumb">
-                          {item.produto.image_url ? (
-                            <img
-                              src={item.produto.image_url}
-                              className="pdv-cart-image"
-                              alt={item.produto.name}
-                            />
-                          ) : (
-                            <LogoKafeteria />
-                          )}
+                    return (
+                      <div
+                        key={item.id}
+                        className="receipt-item grid grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-2xl bg-[#f8f6ea] p-4"
+                      >
+                        <div>
+                          <div className="font-black">
+                            {quantidade}x {nomeProduto(item)}
+                          </div>
+
+                          <div className="mt-1 text-xs font-bold text-[#123b24]/58">
+                            Unitario: {dinheiro(preco)}
+                          </div>
                         </div>
 
-                        <div className="pdv-cart-info">
-                          <div className="pdv-cart-name">
-                            {item.produto.name}
-                          </div>
-
-                          <div className="pdv-cart-muted">
-                            {item.qty}x {dinheiro(item.produto.price)}
-                          </div>
-
-                          <div className="pdv-cart-actions">
-                            <button
-                              onClick={() => diminuir(item.produto.id)}
-                              className="pdv-qty-btn"
-                            >
-                              −
-                            </button>
-
-                            <span className="pdv-qty-number">{item.qty}</span>
-
-                            <button
-                              onClick={() => adicionar(item.produto)}
-                              className="pdv-qty-btn active"
-                            >
-                              +
-                            </button>
-
-                            <button
-                              onClick={() => remover(item.produto.id)}
-                              className="pdv-remove-btn"
-                            >
-                              Remover
-                            </button>
-                          </div>
+                        <div className="font-black text-[#0b7d42]">
+                          {dinheiro(subtotal)}
                         </div>
                       </div>
-
-                      <div className="pdv-cart-price">{dinheiro(subtotal)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {itens.length > 0 && (
-                <button
-                  onClick={limparPedido}
-                  className="pdv-note"
-                  style={{
-                    width: "100%",
-                    cursor: "pointer",
-                    background: "rgba(246, 255, 240, 0.08)",
-                  }}
-                >
-                  Limpar pedido
-                </button>
-              )}
-
-              <div className="pdv-totals">
-                <div className="pdv-total-row">
-                  <span>Subtotal</span>
-                  <span>{dinheiro(total)}</span>
-                </div>
-
-                <div className="pdv-total-row">
-                  <span>Desconto</span>
-                  <span>R$ 0.00</span>
-                </div>
-
-                <div className="pdv-total-final">
-                  <strong>Total</strong>
-                  <span>{dinheiro(total)}</span>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="pdv-payment-row">
-                {["PIX", "Cartão", "Dinheiro"].map((tipo) => (
-                  <button
-                    key={tipo}
-                    onClick={() => setPagamento(tipo)}
-                    className={`pdv-payment ${pagamento === tipo ? "active" : ""}`}
-                  >
-                    {tipo}
-                  </button>
-                ))}
+              <div className="my-6 border-t border-dashed border-[#123b24]/25" />
+
+              <div className="receipt-total flex items-center justify-between text-2xl font-black">
+                <span>Total</span>
+                <span className="text-[#0b7d42]">{dinheiro(venda.total)}</span>
               </div>
 
-              <button onClick={finalizarVenda} className="pdv-finish">
-                Finalizar venda
-              </button>
+              <div className="my-6 border-t border-dashed border-[#123b24]/25" />
 
-              <div className="pdv-safe">Mesa sincronizada com o caixa</div>
-            </div>
-          </aside>
+              <p className="text-center text-sm font-bold text-[#123b24]/62">
+                Obrigado pela preferencia.
+              </p>
+            </>
+          )}
+          </section>
         </div>
+
+        {!carregando && !erro && venda && (
+          <div className="mx-auto mt-6 max-w-md print:hidden">
+            <button onClick={imprimir} className="pdv-finish">
+              Imprimir / Salvar PDF
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );

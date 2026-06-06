@@ -1,11 +1,19 @@
-const CACHE_NAME = "kafeteria-pdv-v1";
+const CACHE_NAME = "kafeteria-pdv-v3-quality";
+const APP_SHELL = [
+  "/",
+  "/manifest.json",
+  "/favicon.ico",
+  "/icon.png",
+  "/apple-icon.png",
+  "/logo.png",
+];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
 
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(["/", "/manifest.json", "/icon.svg"]);
+      return Promise.allSettled(APP_SHELL.map((asset) => cache.add(asset)));
     })
   );
 });

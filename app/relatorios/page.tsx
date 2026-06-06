@@ -4,13 +4,25 @@ import { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import { supabase } from "../../lib/supabase";
 
+type PeriodoRelatorio = "hoje" | "mes" | "todos";
+
+type ProdutoResumo = {
+  nome: string;
+  quantidade: number;
+  total: number;
+};
+
+type ResumoRelatorio = {
+  total: number;
+  pix: number;
+  cartao: number;
+  dinheiro: number;
+  produtos: Record<string, ProdutoResumo>;
+};
+
 export default function Relatorios() {
   const [vendas, setVendas] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
-  const [pix, setPix] = useState(0);
-  const [cartao, setCartao] = useState(0);
-  const [dinheiroTotal, setDinheiroTotal] = useState(0);
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [periodo, setPeriodo] = useState<PeriodoRelatorio>("hoje");
   const [carregando, setCarregando] = useState(true);
 
   async function carregar() {
@@ -44,57 +56,7 @@ export default function Relatorios() {
       return;
     }
 
-    const lista = data || [];
-
-    setVendas(lista);
-
-    let somaTotal = 0;
-    let somaPix = 0;
-    let somaCartao = 0;
-    let somaDinheiro = 0;
-
-    const mapaProdutos: any = {};
-
-    lista.forEach((venda) => {
-      const valor = Number(venda.total || 0);
-
-      somaTotal += valor;
-
-      if (venda.payment_method === "PIX") somaPix += valor;
-      if (venda.payment_method === "Cartão") somaCartao += valor;
-      if (venda.payment_method === "Dinheiro") somaDinheiro += valor;
-
-      const itens = venda.orders?.order_items || [];
-
-      itens.forEach((item: any) => {
-        const nome = item.products?.name || "Produto";
-        const quantidade = Number(item.qty || 0);
-        const subtotal = quantidade * Number(item.price || 0);
-
-        if (!mapaProdutos[nome]) {
-          mapaProdutos[nome] = {
-            nome,
-            quantidade: 0,
-            total: 0,
-          };
-        }
-
-        mapaProdutos[nome].quantidade += quantidade;
-        mapaProdutos[nome].total += subtotal;
-      });
-    });
-
-    setTotal(somaTotal);
-    setPix(somaPix);
-    setCartao(somaCartao);
-    setDinheiroTotal(somaDinheiro);
-
-    setProdutos(
-      Object.values(mapaProdutos).sort(
-        (a: any, b: any) => b.quantidade - a.quantidade
-      )
-    );
-
+    setVendas(data || []);
     setCarregando(false);
   }
 
@@ -106,12 +68,130 @@ export default function Relatorios() {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
   }
 
+  function dentroDoPeriodo(data: string | null) {
+    if (periodo === "todos") return true;
+    if (!data) return false;
+
+    const dataVenda = new Date(data);
+    const agora = new Date();
+
+    if (Number.isNaN(dataVenda.getTime())) return false;
+
+    if (periodo === "hoje") {
+      return dataVenda.toDateString() === agora.toDateString();
+    }
+
+    return (
+      dataVenda.getFullYear() === agora.getFullYear() &&
+      dataVenda.getMonth() === agora.getMonth()
+    );
+  }
+
+  function itensDaVenda(venda: any) {
+    if (Array.isArray(venda.orders)) {
+      return venda.orders.flatMap((order: any) => order.order_items || []);
+    }
+
+    return venda.orders?.order_items || [];
+  }
+
+  function nomeProduto(item: any) {
+    const produto = Array.isArray(item.products)
+      ? item.products[0]
+      : item.products;
+
+    return produto?.name || "Produto";
+  }
+
+  function formaPagamento(venda: any) {
+    const pagamento = String(venda.payment_method || "");
+
+    if (pagamento === "PIX") return "pix";
+    if (pagamento.toLowerCase().startsWith("cart")) return "cartao";
+    if (pagamento === "Dinheiro") return "dinheiro";
+
+    return "";
+  }
+
+  const vendasPeriodo = vendas.filter((venda) =>
+    dentroDoPeriodo(venda.created_at)
+  );
+
+  const resumo = vendasPeriodo.reduce<ResumoRelatorio>(
+    (acc, venda) => {
+      const valor = Number(venda.total || 0);
+      const pagamento = formaPagamento(venda);
+
+      acc.total += valor;
+
+      if (pagamento === "pix") acc.pix += valor;
+      if (pagamento === "cartao") acc.cartao += valor;
+      if (pagamento === "dinheiro") acc.dinheiro += valor;
+
+      itensDaVenda(venda).forEach((item: any) => {
+        const nome = nomeProduto(item);
+        const quantidade = Number(item.qty || 0);
+        const subtotal = quantidade * Number(item.price || 0);
+
+        if (!acc.produtos[nome]) {
+          acc.produtos[nome] = {
+            nome,
+            quantidade: 0,
+            total: 0,
+          };
+        }
+
+        acc.produtos[nome].quantidade += quantidade;
+        acc.produtos[nome].total += subtotal;
+      });
+
+      return acc;
+    },
+    {
+      total: 0,
+      pix: 0,
+      cartao: 0,
+      dinheiro: 0,
+      produtos: {} as Record<string, ProdutoResumo>,
+    }
+  );
+
+  const produtos = Object.values(resumo.produtos).sort(
+    (a, b) => b.quantidade - a.quantidade
+  );
+
   const produtoMaisVendido = produtos[0];
+
   const maiorFormaPagamento = [
-    { nome: "PIX", valor: pix },
-    { nome: "Cartão", valor: cartao },
-    { nome: "Dinheiro", valor: dinheiroTotal },
+    { nome: "PIX", valor: resumo.pix },
+    { nome: "Cartão", valor: resumo.cartao },
+    { nome: "Dinheiro", valor: resumo.dinheiro },
   ].sort((a, b) => b.valor - a.valor)[0];
+
+  const periodoLabel =
+    periodo === "hoje"
+      ? "Hoje"
+      : periodo === "mes"
+        ? "Este mês"
+        : "Todos";
+
+  const filtros: Array<{
+    label: string;
+    value: PeriodoRelatorio;
+  }> = [
+    {
+      label: "Hoje",
+      value: "hoje",
+    },
+    {
+      label: "Este mês",
+      value: "mes",
+    },
+    {
+      label: "Todos",
+      value: "todos",
+    },
+  ];
 
   return (
     <main className="pdv-page">
@@ -123,13 +203,38 @@ export default function Relatorios() {
           backLabel="Ir para o início"
         />
 
+        <section className="pdv-panel mb-5">
+          <div className="pdv-panel-header">
+            <div>
+              <h2 className="pdv-panel-title">Período do relatório</h2>
+              <p className="pdv-panel-subtitle">
+                Selecione o intervalo usado nos totais, pagamentos e produtos.
+              </p>
+            </div>
+
+            <div className="pdv-filter-row">
+              {filtros.map((filtro) => (
+                <button
+                  key={filtro.value}
+                  onClick={() => setPeriodo(filtro.value)}
+                  className={`pdv-tab ${
+                    periodo === filtro.value ? "active" : ""
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="pdv-stats mb-5">
           <div className="pdv-stat-card">
             <div className="pdv-stat-top">
               <div>
                 <div className="pdv-stat-label">Total vendido</div>
-                <div className="pdv-stat-value">{dinheiro(total)}</div>
-                <div className="pdv-stat-note">valor geral vendido</div>
+                <div className="pdv-stat-value">{dinheiro(resumo.total)}</div>
+                <div className="pdv-stat-note">valor em {periodoLabel}</div>
               </div>
 
               <div className="pdv-stat-icon">R$</div>
@@ -140,8 +245,10 @@ export default function Relatorios() {
             <div className="pdv-stat-top">
               <div>
                 <div className="pdv-stat-label">Vendas</div>
-                <div className="pdv-stat-value">{vendas.length}</div>
-                <div className="pdv-stat-note">transações no histórico</div>
+                <div className="pdv-stat-value">{vendasPeriodo.length}</div>
+                <div className="pdv-stat-note">
+                  transações em {periodoLabel}
+                </div>
               </div>
 
               <div className="pdv-stat-icon">VD</div>
@@ -164,7 +271,7 @@ export default function Relatorios() {
                 <div className="pdv-stat-note">
                   {produtoMaisVendido
                     ? `${produtoMaisVendido.quantidade} unidade(s)`
-                    : "sem vendas ainda"}
+                    : "sem vendas no período"}
                 </div>
               </div>
 
@@ -178,7 +285,7 @@ export default function Relatorios() {
             <div>
               <h2 className="pdv-panel-title">Resumo de pagamentos</h2>
               <p className="pdv-panel-subtitle">
-                Valores agrupados por forma de pagamento.
+                Valores agrupados por forma de pagamento em {periodoLabel}.
               </p>
             </div>
 
@@ -236,7 +343,7 @@ export default function Relatorios() {
                     fontWeight: 950,
                   }}
                 >
-                  {dinheiro(pix)}
+                  {dinheiro(resumo.pix)}
                 </div>
               </article>
 
@@ -260,7 +367,7 @@ export default function Relatorios() {
                     fontWeight: 950,
                   }}
                 >
-                  {dinheiro(cartao)}
+                  {dinheiro(resumo.cartao)}
                 </div>
               </article>
 
@@ -284,7 +391,7 @@ export default function Relatorios() {
                     fontWeight: 950,
                   }}
                 >
-                  {dinheiro(dinheiroTotal)}
+                  {dinheiro(resumo.dinheiro)}
                 </div>
               </article>
 
@@ -340,7 +447,7 @@ export default function Relatorios() {
             <div>
               <h2 className="pdv-panel-title">Produtos mais vendidos</h2>
               <p className="pdv-panel-subtitle">
-                Ranking por quantidade vendida e faturamento por produto.
+                Ranking por quantidade vendida e faturamento em {periodoLabel}.
               </p>
             </div>
 
@@ -368,21 +475,14 @@ export default function Relatorios() {
                   fontWeight: 850,
                 }}
               >
-                Nenhum produto vendido ainda.
+                Nenhum produto vendido neste período.
               </div>
             )}
 
             {produtos.map((produto, index) => (
               <article
                 key={produto.nome}
-                className="pdv-product-card"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto minmax(0, 1fr) auto",
-                  gap: 14,
-                  alignItems: "center",
-                  padding: 16,
-                }}
+                className="pdv-product-card pdv-ranking-row"
               >
                 <div
                   style={{

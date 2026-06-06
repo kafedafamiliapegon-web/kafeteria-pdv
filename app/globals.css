@@ -438,7 +438,6 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
   transition: 0.18s ease;
 }
-
 .pdv-stat-card:hover {
   transform: translateY(-3px);
   border-color: rgba(15, 64, 38, 0.18);
@@ -749,7 +748,6 @@ body {
   font-size: 13px;
   font-weight: 950;
 }
-
 .pdv-cart-body {
   padding: 17px;
 }
@@ -1019,6 +1017,21 @@ body {
   animation: pdv-soft-enter 0.32s ease both;
 }
 
+.pdv-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: flex-end;
+}
+
+.pdv-ranking-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
 @media (max-width: 1500px) {
   .pdv-grid {
     grid-template-columns: 1fr;
@@ -1050,6 +1063,92 @@ body {
     min-width: 0;
   }
 }
+@media (max-width: 900px) {
+  .pdv-main {
+    padding: 14px;
+  }
+
+  .pdv-page {
+    letter-spacing: -0.01em;
+  }
+
+  .pdv-hero,
+  .pdv-panel,
+  .pdv-cart,
+  .pdv-stat-card,
+  .pdv-product-card {
+    border-radius: 20px;
+  }
+
+  .pdv-panel {
+    padding: 16px;
+  }
+
+  .pdv-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pdv-filter-row {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .pdv-filter-row .pdv-tab {
+    flex: 1 1 120px;
+  }
+
+  .pdv-search {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+
+  .pdv-finish,
+  .pdv-more-link,
+  .pdv-tab,
+  .pdv-payment,
+  .pdv-remove-btn,
+  .pdv-qty-btn {
+    min-height: 44px;
+  }
+
+  .pdv-cart {
+    position: static !important;
+  }
+
+  .pdv-cart-item {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-cart-left {
+    width: 100%;
+  }
+
+  .pdv-products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdv-product-image,
+  .pdv-product-empty {
+    height: 130px;
+  }
+
+  .pdv-ranking-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pdv-ranking-row > div:last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .pdv-main [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+}
 
 @media (max-width: 760px) {
   .pdv-main {
@@ -1075,23 +1174,87 @@ body {
     min-width: 0;
   }
 }
+
+@media (max-width: 520px) {
+  .pdv-main {
+    padding: 10px;
+  }
+
+  .pdv-hero {
+    padding: 18px;
+  }
+
+  .pdv-hero-title {
+    font-size: 25px;
+  }
+
+  .pdv-hero-info,
+  .pdv-payment-row,
+  .pdv-products {
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-stat-card {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .pdv-stat-top {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pdv-stat-value {
+    font-size: 25px;
+    overflow-wrap: anywhere;
+  }
+
+  .pdv-panel-title,
+  .pdv-cart-title {
+    font-size: 22px;
+  }
+
+  .pdv-product-image,
+  .pdv-product-empty {
+    height: 150px;
+  }
+
+  .pdv-cart-thumb {
+    width: 64px;
+    height: 58px;
+  }
+
+  .pdv-cart-actions {
+    gap: 8px;
+  }
+
+  .pdv-total-final span {
+    font-size: 26px;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 10mm;
   }
 
   html,
   body {
-    background: white !important;
-    color: black !important;
     width: auto !important;
-    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     overflow: visible !important;
   }
 
   body * {
     visibility: hidden !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
   .print-area,
@@ -1101,40 +1264,97 @@ body {
     visibility: visible !important;
   }
 
-  .print-area {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 80mm !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    background: white !important;
-  }
-
-  .receipt-paper {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    max-width: 80mm !important;
-    margin: 0 auto !important;
-    padding: 10mm !important;
-    background: white !important;
-    color: black !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-  }
-
   .print\:hidden,
-  .pdv-main,
-  .pdv-sidebar,
   .pdv-hero,
-  .pdv-stats,
-  .pdv-panel,
+  .pdv-sidebar,
+  .pdv-sidebar *,
   button,
   nav,
   aside {
     display: none !important;
     visibility: hidden !important;
+  }
+
+  .pdv-page,
+  .pdv-main,
+  .print-area {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .pdv-page::before,
+  .pdv-page::after {
+    display: none !important;
+  }
+
+  .print-area {
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+  }
+
+  .receipt-paper {
+    position: static !important;
+    display: block !important;
+    width: 80mm !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 auto !important;
+    padding: 8mm !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #d8d8d8 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .receipt-paper,
+  .receipt-paper * {
+    color: #000000 !important;
+    background-color: transparent !important;
+  }
+
+  .receipt-logo {
+    width: 22mm !important;
+    height: 22mm !important;
+    margin: 0 auto 4mm !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .receipt-logo img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  .receipt-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 6mm !important;
+    padding: 3mm 0 !important;
+    border-top: 1px dashed #b7b7b7 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .receipt-total {
+    padding-top: 3mm !important;
+    border-top: 1px solid #000000 !important;
+    font-size: 15pt !important;
   }
 
   img {
