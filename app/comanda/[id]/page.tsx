@@ -39,8 +39,10 @@ const categorias = [
 export default function Comanda() {
   const { id } = useParams();
   const router = useRouter();
+  const mesaId = Array.isArray(id) ? id[0] : id;
 
   const [mesa, setMesa] = useState<any>(null);
+  const [pedidoAberto, setPedidoAberto] = useState<any>(null);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [pagamento, setPagamento] = useState("PIX");
@@ -52,32 +54,61 @@ export default function Comanda() {
   async function carregar() {
     setCarregando(true);
 
-    const [mesaResponse, productsResponse, cashResponse] = await Promise.all([
-      supabase.from("tables_open").select("*").eq("id", id).single(),
+    const [mesaResponse, productsResponse, cashResponse, orderResponse] =
+      await Promise.all([
+        supabase.from("tables_open").select("*").eq("id", mesaId).single(),
 
-      supabase
-        .from("products")
-        .select("*")
-        .eq("active", true)
-        .order("name", { ascending: true }),
+        supabase
+          .from("products")
+          .select("*")
+          .eq("active", true)
+          .order("name", { ascending: true }),
 
-      supabase
-        .from("cash_registers")
-        .select("*")
-        .eq("status", "open")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+        supabase
+          .from("cash_registers")
+          .select("*")
+          .eq("status", "open")
+          .order("opened_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+
+        supabase
+          .from("orders")
+          .select(
+            `
+            *,
+            order_items (
+              id,
+              product_id,
+              qty,
+              price,
+              products (
+                *
+              )
+            )
+          `
+          )
+          .eq("table_id", mesaId)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
     if (mesaResponse.error) {
-      alert(mesaResponse.error.message);
+      alert("Erro ao carregar mesa: " + mesaResponse.error.message);
       setCarregando(false);
       return;
     }
 
     if (productsResponse.error) {
-      alert(productsResponse.error.message);
+      alert("Erro ao carregar produtos: " + productsResponse.error.message);
+      setCarregando(false);
+      return;
+    }
+
+    if (orderResponse.error) {
+      alert("Erro ao carregar comanda: " + orderResponse.error.message);
       setCarregando(false);
       return;
     }
@@ -85,6 +116,8 @@ export default function Comanda() {
     setMesa(mesaResponse.data);
     setProdutos(productsResponse.data || []);
     setCaixaAberto(cashResponse.data || null);
+    setPedidoAberto(orderResponse.data || null);
+    setItens(itensDoPedido(orderResponse.data));
     setCarregando(false);
   }
 
@@ -113,64 +146,270 @@ export default function Comanda() {
     });
   }
 
-  function adicionar(produto: any) {
+  function itensDoPedido(pedido: any): ItemCarrinho[] {
+    const itensPedido = pedido?.order_items || [];
+
+    return itensPedido
+      .filter((item: any) => item.products)
+      .map((item: any) => ({
+        produto: {
+          ...item.products,
+          id: item.product_id || item.products.id,
+          price: Number(item.price ?? item.products.price ?? 0),
+        },
+        qty: Number(item.qty || 0),
+      }))
+      .filter((item: ItemCarrinho) => item.qty > 0);
+  }
+
+  function totalDosItens(lista: ItemCarrinho[]) {
+    return lista.reduce(
+      (soma, item) => soma + Number(item.produto.price || 0) * item.qty,
+      0
+    );
+  }
+
+  async function atualizarResumoPedido(orderId: string, lista: ItemCarrinho[]) {
+    const totalPedido = totalDosItens(lista);
+
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        subtotal: totalPedido,
+        discount: 0,
+        total: totalPedido,
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      alert("Erro ao atualizar total da comanda: " + error.message);
+      return false;
+    }
+
+    return true;
+  }
+
+  async function buscarPedidoAberto() {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        order_items (
+          id,
+          product_id,
+          qty,
+          price,
+          products (
+            *
+          )
+        )
+      `
+      )
+      .eq("table_id", mesaId)
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      alert("Erro ao buscar comanda aberta: " + error.message);
+      return null;
+    }
+
+    return data || null;
+  }
+
+  async function obterOuCriarPedidoAberto() {
+    if (pedidoAberto) return pedidoAberto;
+
+    const existente = await buscarPedidoAberto();
+
+    if (existente) {
+      setPedidoAberto(existente);
+      setItens(itensDoPedido(existente));
+      return existente;
+    }
+
+    const { data, error } = await supabase
+      .from("orders")
+      .insert({
+        table_id: mesaId,
+        status: "open",
+        subtotal: 0,
+        discount: 0,
+        total: 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert("Erro ao criar comanda no banco: " + error.message);
+      return null;
+    }
+
+    setPedidoAberto(data);
+    return data;
+  }
+
+  async function adicionar(produto: any) {
     if (Number(produto.stock) <= 0) {
       alert("Produto sem estoque");
       return;
     }
 
-    setItens((atual) => {
-      const existente = atual.find((item) => item.produto.id === produto.id);
+    const pedido = await obterOuCriarPedidoAberto();
 
-      if (existente) {
-        if (existente.qty >= Number(produto.stock)) {
-          alert("Estoque insuficiente");
-          return atual;
-        }
+    if (!pedido) return;
 
-        return atual.map((item) =>
+    const existente = itens.find((item) => item.produto.id === produto.id);
+
+    if (existente && existente.qty >= Number(produto.stock)) {
+      alert("Estoque insuficiente");
+      return;
+    }
+
+    const novaQuantidade = existente ? existente.qty + 1 : 1;
+
+    if (existente) {
+      const { error } = await supabase
+        .from("order_items")
+        .update({
+          qty: novaQuantidade,
+          price: Number(produto.price),
+        })
+        .eq("order_id", pedido.id)
+        .eq("product_id", produto.id);
+
+      if (error) {
+        alert("Erro ao atualizar item da comanda: " + error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("order_items").insert({
+        order_id: pedido.id,
+        product_id: produto.id,
+        qty: novaQuantidade,
+        price: Number(produto.price),
+      });
+
+      if (error) {
+        alert("Erro ao salvar item na comanda: " + error.message);
+        return;
+      }
+    }
+
+    const proximosItens = existente
+      ? itens.map((item) =>
           item.produto.id === produto.id
             ? {
                 ...item,
-                qty: item.qty + 1,
-              }
-            : item
-        );
-      }
-
-      return [
-        ...atual,
-        {
-          produto,
-          qty: 1,
-        },
-      ];
-    });
-  }
-
-  function diminuir(produtoId: string) {
-    setItens((atual) =>
-      atual
-        .map((item) =>
-          item.produto.id === produtoId
-            ? {
-                ...item,
-                qty: item.qty - 1,
+                qty: novaQuantidade,
               }
             : item
         )
-        .filter((item) => item.qty > 0)
+      : [
+          ...itens,
+          {
+            produto,
+            qty: novaQuantidade,
+          },
+        ];
+
+    const resumoOk = await atualizarResumoPedido(pedido.id, proximosItens);
+
+    if (!resumoOk) return;
+
+    setItens(proximosItens);
+  }
+
+  async function diminuir(produtoId: string) {
+    const itemAtual = itens.find((item) => item.produto.id === produtoId);
+
+    if (!itemAtual || !pedidoAberto) return;
+
+    const novaQuantidade = itemAtual.qty - 1;
+
+    if (novaQuantidade <= 0) {
+      await remover(produtoId);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("order_items")
+      .update({
+        qty: novaQuantidade,
+        price: Number(itemAtual.produto.price),
+      })
+      .eq("order_id", pedidoAberto.id)
+      .eq("product_id", produtoId);
+
+    if (error) {
+      alert("Erro ao diminuir item da comanda: " + error.message);
+      return;
+    }
+
+    const proximosItens = itens.map((item) =>
+      item.produto.id === produtoId
+        ? {
+            ...item,
+            qty: novaQuantidade,
+          }
+        : item
     );
+
+    const resumoOk = await atualizarResumoPedido(pedidoAberto.id, proximosItens);
+
+    if (!resumoOk) return;
+
+    setItens(proximosItens);
   }
 
-  function remover(produtoId: string) {
-    setItens((atual) => atual.filter((item) => item.produto.id !== produtoId));
+  async function remover(produtoId: string) {
+    if (!pedidoAberto) return;
+
+    const { error } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("order_id", pedidoAberto.id)
+      .eq("product_id", produtoId);
+
+    if (error) {
+      alert("Erro ao remover item da comanda: " + error.message);
+      return;
+    }
+
+    const proximosItens = itens.filter((item) => item.produto.id !== produtoId);
+    const resumoOk = await atualizarResumoPedido(pedidoAberto.id, proximosItens);
+
+    if (!resumoOk) return;
+
+    setItens(proximosItens);
   }
 
-  function limparPedido() {
+  async function limparPedido() {
     const confirmar = confirm("Limpar todos os itens desta comanda?");
 
     if (!confirmar) return;
+
+    if (!pedidoAberto) {
+      setItens([]);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("order_id", pedidoAberto.id);
+
+    if (error) {
+      alert("Erro ao limpar comanda: " + error.message);
+      return;
+    }
+
+    const resumoOk = await atualizarResumoPedido(pedidoAberto.id, []);
+
+    if (!resumoOk) return;
 
     setItens([]);
   }
@@ -195,7 +434,11 @@ export default function Comanda() {
   }
 
   async function finalizarVenda() {
-    if (itens.length === 0) {
+    const pedido = await buscarPedidoAberto();
+    const itensVenda = itensDoPedido(pedido);
+    const totalVenda = totalDosItens(itensVenda);
+
+    if (!pedido || itensVenda.length === 0) {
       alert("Adicione pelo menos um item");
       return;
     }
@@ -209,45 +452,19 @@ export default function Comanda() {
     }
 
     const confirmar = confirm(
-      `Finalizar venda de ${dinheiro(total)} em ${pagamento}?`
+      `Finalizar venda de ${dinheiro(totalVenda)} em ${pagamento}?`
     );
 
     if (!confirmar) return;
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        table_id: id,
-        status: "closed",
-        subtotal: total,
-        discount: 0,
-        total: total,
-      })
-      .select()
-      .single();
-
-    if (orderError) {
-      alert(orderError.message);
-      return;
+    for (const item of itensVenda) {
+      if (item.qty > Number(item.produto.stock || 0)) {
+        alert(`Estoque insuficiente para ${item.produto.name}`);
+        return;
+      }
     }
 
-    const orderItems = itens.map((item) => ({
-      order_id: order.id,
-      product_id: item.produto.id,
-      qty: item.qty,
-      price: Number(item.produto.price),
-    }));
-
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(orderItems);
-
-    if (itemsError) {
-      alert(itemsError.message);
-      return;
-    }
-
-    for (const item of itens) {
+    for (const item of itensVenda) {
       const novoEstoque = Number(item.produto.stock) - item.qty;
 
       const { error: stockError } = await supabase
@@ -258,24 +475,39 @@ export default function Comanda() {
         .eq("id", item.produto.id);
 
       if (stockError) {
-        alert(stockError.message);
+        alert("Erro ao baixar estoque: " + stockError.message);
         return;
       }
+    }
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        status: "closed",
+        subtotal: totalVenda,
+        discount: 0,
+        total: totalVenda,
+      })
+      .eq("id", pedido.id);
+
+    if (orderError) {
+      alert("Erro ao fechar comanda: " + orderError.message);
+      return;
     }
 
     const { data: sale, error: saleError } = await supabase
       .from("sales")
       .insert({
         payment_method: pagamento,
-        total: total,
-        order_id: order.id,
+        total: totalVenda,
+        order_id: pedido.id,
         cash_register_id: caixa.id,
       })
       .select()
       .single();
 
     if (saleError) {
-      alert(saleError.message);
+      alert("Erro ao registrar venda: " + saleError.message);
       return;
     }
 
@@ -284,23 +516,24 @@ export default function Comanda() {
       .update({
         status: "closed",
       })
-      .eq("id", id);
+      .eq("id", mesaId);
 
     if (tableError) {
-      alert(tableError.message);
+      alert("Erro ao fechar mesa: " + tableError.message);
       return;
     }
 
     alert("Venda finalizada com sucesso");
 
     setItens([]);
+    setPedidoAberto(null);
 
     router.push(`/cupom/${sale.id}`);
   }
 
   useEffect(() => {
-    if (id) carregar();
-  }, [id]);
+    if (mesaId) carregar();
+  }, [mesaId]);
 
   return (
     <main className="pdv-page">
